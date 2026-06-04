@@ -1,9 +1,21 @@
+import { useState, useEffect } from 'react';
 import { PageContainer } from '../components/layout/PageContainer';
 import { TeamCostTable } from '../components/teams/TeamCostTable';
 import { ScoringRulesTable } from '../components/scoring/ScoringRulesTable';
-import { TEAMS } from '../data/teams';
+import { fetchTeams } from '../lib/teamsApi';
+import type { Team } from '../types/domain';
 
 export function TeamsPage() {
+  const [teams, setTeams] = useState<Team[]>([]);
+
+  useEffect(() => {
+    fetchTeams()
+      .then(setTeams)
+      .catch(() => {
+        import('../data/teams').then((m) => setTeams(m.TEAMS));
+      });
+  }, []);
+
   return (
     <PageContainer>
       <div className="page-header">
@@ -13,7 +25,7 @@ export function TeamsPage() {
         </p>
       </div>
 
-      <TeamCostTable teams={TEAMS} />
+      <TeamCostTable teams={teams} />
 
       <div style={{ marginTop: '3rem' }}>
         <h2 style={{ marginBottom: '1rem' }}>Scoring Rules</h2>

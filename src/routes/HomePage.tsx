@@ -88,6 +88,16 @@ export function HomePage() {
             View all 48 teams and costs →
           </Link>
         </p>
+        <p style={{ marginTop: '0.5rem', fontSize: 'var(--font-size-sm)' }}>
+          <a
+            href="https://www.espn.com/soccer/story/_/id/48871263/world-cup-2026-key-players-facts-expectations-fixtures-odds-all-48-teams"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: 'var(--color-teal-500)', fontWeight: 600 }}
+          >
+            ESPN Mega-Preview: Key players, facts &amp; odds for all 48 teams →
+          </a>
+        </p>
       </section>
 
       {/* Scoring */}

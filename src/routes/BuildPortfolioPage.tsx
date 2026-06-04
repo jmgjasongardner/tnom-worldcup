@@ -4,6 +4,7 @@ import { TeamCard } from '../components/teams/TeamCard';
 import { TeamFilters } from '../components/teams/TeamFilters';
 import { PortfolioSidebar } from '../components/portfolio/PortfolioSidebar';
 import { LoadingState } from '../components/ui/LoadingState';
+import { Button } from '../components/ui/Button';
 import { fetchTeams, fetchAppSettings } from '../lib/teamsApi';
 import { fetchMyEntry, submitPortfolio } from '../lib/entriesApi';
 import { sortTeams, filterTeams } from '../lib/sorting';
@@ -18,8 +19,16 @@ export function BuildPortfolioPage() {
   const [teams, setTeams] = useState<Team[]>(STATIC_TEAMS);
   const [picksLocked, setPicksLocked] = useState(false);
   const [selectedTeams, setSelectedTeams] = useState<Team[]>([]);
-  const [email, setEmail] = useState(() => localStorage.getItem(LS_EMAIL) ?? '');
-  const [displayName, setDisplayName] = useState(() => localStorage.getItem(LS_NAME) ?? '');
+
+  // Identity inputs (pre-submission)
+  const [emailInput, setEmailInput] = useState('');
+  const [nameInput, setNameInput] = useState('');
+
+  // Committed identity (after clicking Sign In)
+  const [email, setEmail] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [isIdentified, setIsIdentified] = useState(false);
+
   const [hasEntry, setHasEntry] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -43,7 +52,20 @@ export function BuildPortfolioPage() {
       .finally(() => setDataLoading(false));
   }, []);
 
-  // Load existing entry when email is a valid Technomics address
+  // Auto-identify from localStorage on mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem(LS_EMAIL);
+    const savedName  = localStorage.getItem(LS_NAME);
+    if (savedEmail) {
+      setEmailInput(savedEmail);
+      setNameInput(savedName ?? '');
+      setEmail(savedEmail);
+      setDisplayName(savedName ?? '');
+      setIsIdentified(true);
+    }
+  }, []);
+
+  // Load existing picks when identified and teams are ready
   const loadEntry = useCallback(async (emailVal: string, teamList: Team[]) => {
     if (!emailVal.toLowerCase().endsWith(EMAIL_DOMAIN)) return;
     setEntryLoading(true);
@@ -52,6 +74,7 @@ export function BuildPortfolioPage() {
       if (entry) {
         setHasEntry(true);
         setDisplayName(entry.displayName);
+        setNameInput(entry.displayName);
         localStorage.setItem(LS_NAME, entry.displayName);
         const savedTeams = entry.teamIds
           .map((id) => teamList.find((t) => t.id === id))
@@ -63,18 +86,41 @@ export function BuildPortfolioPage() {
     }
   }, []);
 
-  // Auto-load when we have both teams and a saved email
   useEffect(() => {
-    if (!dataLoading && email) {
+    if (!dataLoading && isIdentified && email) {
       loadEntry(email, teams);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataLoading]);
+  }, [dataLoading, isIdentified]);
+
+  const handleSignIn = () => {
+    const trimmedEmail = emailInput.toLowerCase().trim();
+    const trimmedName  = nameInput.trim();
+    setEmail(trimmedEmail);
+    setDisplayName(trimmedName);
+    setIsIdentified(true);
+    localStorage.setItem(LS_EMAIL, trimmedEmail);
+    if (trimmedName) localStorage.setItem(LS_NAME, trimmedName);
+    loadEntry(trimmedEmail, teams);
+  };
+
+  const handleSwitchAccount = () => {
+    setIsIdentified(false);
+    setEmail('');
+    setDisplayName('');
+    setEmailInput('');
+    setNameInput('');
+    setSelectedTeams([]);
+    setHasEntry(false);
+    setSubmitMessage(null);
+    localStorage.removeItem(LS_EMAIL);
+    localStorage.removeItem(LS_NAME);
+  };
 
   const totalCost = selectedTeams.reduce((s, t) => s + t.cost, 0);
 
   const handleToggle = (team: Team) => {
-    if (picksLocked) return;
+    if (picksLocked || !isIdentified) return;
     setSelectedTeams((prev) => {
       if (prev.find((t) => t.id === team.id)) return prev.filter((t) => t.id !== team.id);
       return [...prev, team];
@@ -82,16 +128,9 @@ export function BuildPortfolioPage() {
     setSubmitMessage(null);
   };
 
-  const handleEmailBlur = () => {
-    if (email.toLowerCase().endsWith(EMAIL_DOMAIN)) {
-      localStorage.setItem(LS_EMAIL, email.toLowerCase().trim());
-      loadEntry(email, teams);
-    }
-  };
-
   const handleSubmit = async () => {
+    if (!isIdentified) return;
     if (selectedTeams.length !== REQUIRED_TEAM_COUNT || totalCost > MAX_BUDGET) return;
-    if (!email.toLowerCase().endsWith(EMAIL_DOMAIN)) return;
 
     setSubmitting(true);
     setSubmitMessage(null);
@@ -102,8 +141,6 @@ export function BuildPortfolioPage() {
     if (!result.success) {
       setSubmitMessage({ type: 'error', text: result.error ?? 'Something went wrong.' });
     } else {
-      localStorage.setItem(LS_EMAIL, email.toLowerCase().trim());
-      localStorage.setItem(LS_NAME, displayName.trim());
       setHasEntry(true);
       setSubmitMessage({
         type: 'success',
@@ -118,10 +155,11 @@ export function BuildPortfolioPage() {
   const sorted = sortTeams(filtered, sortOption);
 
   const isDisabled = (team: Team) =>
-    !selectedTeams.find((t) => t.id === team.id) &&
-    (selectedTeams.length >= REQUIRED_TEAM_COUNT || totalCost + team.cost > MAX_BUDGET);
+    !isIdentified ||
+    (!selectedTeams.find((t) => t.id === team.id) &&
+      (selectedTeams.length >= REQUIRED_TEAM_COUNT || totalCost + team.cost > MAX_BUDGET));
 
-  const emailValid = email.toLowerCase().trim().endsWith(EMAIL_DOMAIN);
+  const emailValid = emailInput.toLowerCase().trim().endsWith(EMAIL_DOMAIN);
 
   if (dataLoading) {
     return <PageContainer><LoadingState message="Loading…" /></PageContainer>;
@@ -136,49 +174,78 @@ export function BuildPortfolioPage() {
 
       {/* Identity card */}
       <div className="card" style={{ marginBottom: '1.5rem', maxWidth: 520 }}>
-        <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div>
-            <label htmlFor="pick-email" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
-              Technomics email
-            </label>
-            <input
-              id="pick-email"
-              type="email"
-              className="input"
-              placeholder="you@technomics.net"
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); setSubmitMessage(null); }}
-              onBlur={handleEmailBlur}
-              disabled={picksLocked}
-              autoComplete="email"
-            />
-            {email && !emailValid && (
-              <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-error)', marginTop: '0.25rem' }}>
-                Please use your @technomics.net email.
-              </p>
-            )}
-          </div>
-          <div>
-            <label htmlFor="display-name" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
-              Display name <span style={{ fontWeight: 400, color: 'var(--color-text-muted)' }}>(shown on leaderboard)</span>
-            </label>
-            <input
-              id="display-name"
-              type="text"
-              className="input"
-              placeholder="e.g. Jason G."
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              disabled={picksLocked}
-            />
-          </div>
-          {entryLoading && (
-            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>Loading your picks…</p>
-          )}
-          {hasEntry && !entryLoading && (
-            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-success)' }}>
-              ✓ Portfolio loaded — you can edit until picks lock.
-            </p>
+        <div className="card-body">
+          {!isIdentified ? (
+            /* Sign-in form */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div>
+                <label htmlFor="pick-email" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
+                  Technomics email
+                </label>
+                <input
+                  id="pick-email"
+                  type="email"
+                  className="input"
+                  placeholder="you@technomics.net"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && emailValid && nameInput.trim() && handleSignIn()}
+                  autoFocus
+                  autoComplete="email"
+                />
+                {emailInput && !emailValid && (
+                  <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-error)', marginTop: '0.25rem' }}>
+                    Please use your @technomics.net email.
+                  </p>
+                )}
+              </div>
+              <div>
+                <label htmlFor="display-name" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
+                  Display name <span style={{ fontWeight: 400, color: 'var(--color-text-muted)' }}>(shown on leaderboard)</span>
+                </label>
+                <input
+                  id="display-name"
+                  type="text"
+                  className="input"
+                  placeholder="FirstName LastName"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && emailValid && nameInput.trim() && handleSignIn()}
+                />
+              </div>
+              <Button
+                variant="primary"
+                onClick={handleSignIn}
+                disabled={!emailValid || !nameInput.trim()}
+              >
+                Sign In &amp; Start Picking
+              </Button>
+            </div>
+          ) : (
+            /* Signed-in state */
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontWeight: 600, color: 'var(--color-navy-900)' }}>{displayName}</div>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{email}</div>
+                {entryLoading && (
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>
+                    Loading your picks…
+                  </div>
+                )}
+                {hasEntry && !entryLoading && (
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-success)', marginTop: '0.25rem' }}>
+                    ✓ Portfolio loaded — edit until picks lock.
+                  </div>
+                )}
+              </div>
+              <button
+                className="btn btn--ghost btn--sm"
+                onClick={handleSwitchAccount}
+                style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}
+              >
+                Switch account
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -195,56 +262,58 @@ export function BuildPortfolioPage() {
         </div>
       )}
 
-      {/* Main layout */}
-      <div className="build-layout">
-        <div className="build-main">
-          <TeamFilters
-            tierFilter={tierFilter}
-            groupFilter={groupFilter}
-            sortOption={sortOption}
-            searchQuery={searchQuery}
-            onTierChange={setTierFilter}
-            onGroupChange={setGroupFilter}
-            onSortChange={setSortOption}
-            onSearchChange={setSearchQuery}
-            resultCount={sorted.length}
-          />
+      {/* Main layout — only shown once identified */}
+      {isIdentified && (
+        <div className="build-layout">
+          <div className="build-main">
+            <TeamFilters
+              tierFilter={tierFilter}
+              groupFilter={groupFilter}
+              sortOption={sortOption}
+              searchQuery={searchQuery}
+              onTierChange={setTierFilter}
+              onGroupChange={setGroupFilter}
+              onSortChange={setSortOption}
+              onSearchChange={setSearchQuery}
+              resultCount={sorted.length}
+            />
 
-          <div className="team-card-list" style={{ marginTop: '1rem' }}>
-            {sorted.map((team) => (
-              <TeamCard
-                key={team.id}
-                team={team}
-                isSelected={!!selectedTeams.find((t) => t.id === team.id)}
-                isDisabled={isDisabled(team)}
-                onToggle={handleToggle}
-                picksLocked={picksLocked}
-              />
-            ))}
-            {sorted.length === 0 && (
-              <div className="empty-state">
-                <div className="empty-state-icon">🔍</div>
-                <div className="empty-state-title">No teams match your filters</div>
-                <div className="empty-state-description">Try adjusting your search or filters.</div>
-              </div>
-            )}
+            <div className="team-card-list" style={{ marginTop: '1rem' }}>
+              {sorted.map((team) => (
+                <TeamCard
+                  key={team.id}
+                  team={team}
+                  isSelected={!!selectedTeams.find((t) => t.id === team.id)}
+                  isDisabled={isDisabled(team)}
+                  onToggle={handleToggle}
+                  picksLocked={picksLocked}
+                />
+              ))}
+              {sorted.length === 0 && (
+                <div className="empty-state">
+                  <div className="empty-state-icon">🔍</div>
+                  <div className="empty-state-title">No teams match your filters</div>
+                  <div className="empty-state-description">Try adjusting your search or filters.</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="build-sidebar">
+            <PortfolioSidebar
+              selectedTeams={selectedTeams}
+              email={email}
+              displayName={displayName}
+              picksLocked={picksLocked}
+              submitted={hasEntry}
+              submitting={submitting}
+              signedIn={isIdentified}
+              onRemove={handleToggle}
+              onSubmit={handleSubmit}
+            />
           </div>
         </div>
-
-        <div className="build-sidebar">
-          <PortfolioSidebar
-            selectedTeams={selectedTeams}
-            email={email}
-            displayName={displayName}
-            picksLocked={picksLocked}
-            submitted={hasEntry}
-            submitting={submitting}
-            signedIn={emailValid}
-            onRemove={handleToggle}
-            onSubmit={handleSubmit}
-          />
-        </div>
-      </div>
+      )}
     </PageContainer>
   );
 }

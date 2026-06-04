@@ -28,8 +28,8 @@ export function Header() {
 
         <Nav />
 
-        <div className="header-auth">
-          {displayLabel ? (
+        {displayLabel && (
+          <div className="header-auth">
             <div className="header-user">
               <span className="header-user-name">{displayLabel}</span>
               <button
@@ -40,12 +40,8 @@ export function Header() {
                 Sign out
               </button>
             </div>
-          ) : (
-            <Link to="/pick" className="btn btn--secondary btn--sm" style={{ flexShrink: 0 }}>
-              Sign in
-            </Link>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </header>
   );

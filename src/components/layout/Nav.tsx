@@ -4,6 +4,7 @@ const NAV_ITEMS = [
   { to: '/', label: 'Home', emoji: '🏠' },
   { to: '/pick', label: 'Build Portfolio', emoji: '✏️' },
   { to: '/teams', label: 'Teams', emoji: '🌍' },
+  { to: '/schedule', label: 'Schedule', emoji: '📅' },
   { to: '/leaderboard', label: 'Leaderboard', emoji: '🏆' },
   { to: '/my-portfolio', label: 'My Portfolio', emoji: '📋' },
 ];

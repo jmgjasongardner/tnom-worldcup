@@ -1,6 +1,21 @@
 import { supabase } from './supabaseClient';
 import type { Team } from '../types/domain';
 import { TEAMS as STATIC_TEAMS } from '../data/teams';
+import { TEAM_EXTRAS } from '../data/teamExtras';
+
+/** Enrich static team data with FIFA ranks and betting odds. */
+function withExtras(teams: Team[]): Team[] {
+  return teams.map((t) => {
+    const extra = TEAM_EXTRAS[t.id];
+    if (!extra) return t;
+    return {
+      ...t,
+      fifaRank: t.fifaRank ?? extra.fifaRank ?? null,
+      titleOdds: t.titleOdds ?? extra.titleOdds ?? null,
+      groupWinOdds: t.groupWinOdds ?? extra.groupWinOdds ?? null,
+    };
+  });
+}
 
 function rowToTeam(row: Record<string, unknown>): Team {
   return {
@@ -30,10 +45,12 @@ export async function fetchTeams(): Promise<Team[]> {
 
   if (error || !data || data.length === 0) {
     // Fall back to static data if Supabase isn't seeded yet
-    return STATIC_TEAMS;
+    return withExtras(STATIC_TEAMS);
   }
 
-  return data.map(rowToTeam);
+  // Supabase data already has ranks/odds from patch_001.sql,
+  // but fall back to local extras if they're still null.
+  return withExtras(data.map(rowToTeam));
 }
 
 export async function fetchAppSettings() {

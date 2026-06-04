@@ -3,6 +3,7 @@ import type { Team, SortOption } from '../../types/domain';
 import { TierBadge } from '../ui/Badge';
 import { sortTeams, filterTeams } from '../../lib/sorting';
 import { TeamFilters } from './TeamFilters';
+import { TeamFlag } from './TeamFlag';
 
 interface TeamCostTableProps {
   teams: Team[];
@@ -53,9 +54,7 @@ export function TeamCostTable({ teams }: TeamCostTableProps) {
                 >
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span role="img" aria-label={`${team.country} flag`} style={{ fontSize: '1.25rem' }}>
-                        {team.flagEmoji}
-                      </span>
+                      <TeamFlag teamId={team.id} flagEmoji={team.flagEmoji} country={team.country} size="sm" />
                       <strong>{team.country}</strong>
                     </div>
                   </td>

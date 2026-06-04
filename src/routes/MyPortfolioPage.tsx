@@ -5,6 +5,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { LoadingState } from '../components/ui/LoadingState';
 import { Button } from '../components/ui/Button';
 import { TierBadge } from '../components/ui/Badge';
+import { TeamFlag } from '../components/teams/TeamFlag';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchMyEntry } from '../lib/entriesApi';
 import { TEAM_MAP } from '../data/teams';
@@ -88,7 +89,7 @@ export function MyPortfolioPage() {
         {teams.map((team) => (
           <div key={team.id} className="card card--flat" style={{ padding: '1rem 1.25rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
-              <span style={{ fontSize: '1.75rem' }}>{team.flagEmoji}</span>
+              <TeamFlag teamId={team.id} flagEmoji={team.flagEmoji} country={team.country} size="lg" />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600, color: 'var(--color-navy-900)' }}>{team.country}</div>
                 <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>

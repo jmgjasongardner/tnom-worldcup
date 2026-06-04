@@ -33,25 +33,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        getProfile(session.user.id).then(setProfile);
-      }
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        if (session?.user) {
+          return getProfile(session.user.id).then(setProfile).catch(() => {});
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
 
     // Listen for auth changes (magic link clicks, sign out, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
-        if (session?.user) {
-          const p = await getProfile(session.user.id);
-          setProfile(p);
-        } else {
-          setProfile(null);
+        try {
+          if (session?.user) {
+            const p = await getProfile(session.user.id);
+            setProfile(p);
+          } else {
+            setProfile(null);
+          }
+        } catch {
+          // profile fetch failed — don't leave loading=true
+        } finally {
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
 

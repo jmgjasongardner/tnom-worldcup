@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Team } from '../../types/domain';
 import { TierBadge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { TeamFlag } from './TeamFlag';
 
 interface TeamCardProps {
   team: Team;
@@ -24,8 +25,8 @@ export function TeamCard({ team, isSelected, isDisabled, onToggle, picksLocked =
       <div className="team-card-main">
         {/* Flag + country info */}
         <div className="team-card-identity">
-          <span className="team-flag" role="img" aria-label={`${team.country} flag`}>
-            {team.flagEmoji}
+          <span className="team-flag">
+            <TeamFlag teamId={team.id} flagEmoji={team.flagEmoji} country={team.country} size="md" />
           </span>
           <div className="team-card-info">
             <div className="team-card-country">{team.country}</div>

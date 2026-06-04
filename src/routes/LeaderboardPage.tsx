@@ -1,11 +1,28 @@
+import { useState, useEffect } from 'react';
 import { PageContainer } from '../components/layout/PageContainer';
 import { EmptyState } from '../components/ui/EmptyState';
-import { MOCK_ENTRIES } from '../data/mockEntries';
-
-const PICKS_LOCKED = false;
+import { supabase } from '../lib/supabaseClient';
+import { fetchAppSettings } from '../lib/teamsApi';
 
 export function LeaderboardPage() {
-  if (!PICKS_LOCKED) {
+  const [picksLocked, setPicksLocked] = useState(false);
+  const [entryCount, setEntryCount] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetchAppSettings(),
+      supabase.rpc('count_entries'),
+    ])
+      .then(([settings, { data: count }]) => {
+        setPicksLocked(settings.picksLocked);
+        setEntryCount(typeof count === 'number' ? count : null);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (!picksLocked) {
     return (
       <PageContainer width="narrow">
         <div className="page-header">
@@ -21,7 +38,9 @@ export function LeaderboardPage() {
             <div className="leaderboard-pre-lock-stats">
               <div className="stat-card">
                 <div className="stat-card-label">Portfolios Submitted</div>
-                <div className="stat-card-value">{MOCK_ENTRIES.length}</div>
+                <div className="stat-card-value">
+                  {loading ? '…' : (entryCount ?? '—')}
+                </div>
               </div>
               <div className="stat-card">
                 <div className="stat-card-label">Lock Date</div>

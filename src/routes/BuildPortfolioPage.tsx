@@ -33,11 +33,15 @@ export function BuildPortfolioPage() {
 
   // Load teams and app settings on mount
   useEffect(() => {
-    Promise.all([fetchTeams(), fetchAppSettings()]).then(([teamData, settings]) => {
-      setTeams(teamData);
-      setPicksLocked(settings.picksLocked);
-      setDataLoading(false);
-    });
+    Promise.all([fetchTeams(), fetchAppSettings()])
+      .then(([teamData, settings]) => {
+        setTeams(teamData);
+        setPicksLocked(settings.picksLocked);
+      })
+      .catch(() => {
+        // fallback to static data already set as default state
+      })
+      .finally(() => setDataLoading(false));
   }, []);
 
   // Load existing entry when user is known

@@ -1,0 +1,222 @@
+/* App Shell */
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg);
+}
+
+/* Header */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: var(--header-height);
+  background-color: var(--color-navy-900);
+  border-bottom: 1px solid rgba(127, 219, 218, 0.15);
+  box-shadow: 0 2px 12px rgba(6, 43, 58, 0.3);
+}
+
+.header-inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  height: 100%;
+  padding: 0 var(--space-6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.header-brand-icon {
+  font-size: 1.5rem;
+}
+
+.header-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.header-brand-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: white;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+.header-brand-subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--color-aqua-300);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Navigation */
+.nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.nav-link {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: rgba(255, 255, 255, 0.75);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+.nav-link.active {
+  background-color: rgba(0, 166, 166, 0.2);
+  color: var(--color-aqua-300);
+}
+
+/* Main content */
+.main-content {
+  flex: 1;
+}
+
+/* Page container */
+.page-container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6);
+}
+
+.page-container--wide {
+  max-width: 100%;
+  padding: var(--space-8) var(--space-6);
+}
+
+.page-container--narrow {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6);
+}
+
+/* Page header */
+.page-header {
+  margin-bottom: var(--space-8);
+}
+
+.page-title {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-navy-900);
+  margin-bottom: var(--space-2);
+}
+
+.page-subtitle {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+}
+
+/* Build Portfolio layout */
+.build-layout {
+  display: grid;
+  grid-template-columns: 1fr var(--sidebar-width);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.build-main {
+  min-width: 0;
+}
+
+.build-sidebar {
+  position: sticky;
+  top: calc(var(--header-height) + var(--space-4));
+}
+
+/* Auth in header */
+.header-auth {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.header-user-name {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: rgba(255, 255, 255, 0.75);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .header-user-name { display: none; }
+}
+
+/* Sign-in panel */
+.sign-in-panel {
+  margin-bottom: 1.5rem;
+}
+
+.sign-in-sent {
+  text-align: center;
+  padding: 2rem;
+}
+
+.sign-in-sent h2 {
+  margin-bottom: 0.5rem;
+}
+
+.sign-in-sent p {
+  font-size: var(--font-size-sm);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .build-layout {
+    grid-template-columns: 1fr;
+  }
+  .build-sidebar {
+    position: static;
+    order: -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: var(--space-6) var(--space-4);
+  }
+  .header-inner {
+    padding: 0 var(--space-4);
+  }
+  .header-brand-subtitle {
+    display: none;
+  }
+  .nav-link {
+    padding: var(--space-2);
+    font-size: var(--font-size-xs);
+  }
+}
+
+@media (max-width: 640px) {
+  .nav .nav-link span {
+    display: none;
+  }
+}

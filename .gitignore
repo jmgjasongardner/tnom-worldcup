@@ -1,0 +1,33 @@
+# Environment variables — never commit these
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+
+# Vite / editor
+*.local
+.vite/
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Python (leftover from previous project)
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pdm-python
+pdm.lock

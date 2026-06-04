@@ -1,0 +1,43 @@
+import type { Entry } from '../types/domain';
+
+export const MOCK_ENTRIES: Entry[] = [
+  {
+    id: 'entry-1',
+    userId: 'user-1',
+    displayName: 'Alex Rivera',
+    totalCost: 98,
+    submittedAt: '2026-06-01T10:00:00Z',
+    updatedAt: '2026-06-01T10:00:00Z',
+    currentPoints: 0,
+    maxPossiblePoints: 50,
+    teamsAlive: 6,
+    rank: 1,
+    strategy: 'Stars & Sleepers',
+  },
+  {
+    id: 'entry-2',
+    userId: 'user-2',
+    displayName: 'Jamie Chen',
+    totalCost: 95,
+    submittedAt: '2026-06-01T11:00:00Z',
+    updatedAt: '2026-06-01T11:00:00Z',
+    currentPoints: 0,
+    maxPossiblePoints: 50,
+    teamsAlive: 6,
+    rank: 2,
+    strategy: 'Balanced',
+  },
+  {
+    id: 'entry-3',
+    userId: 'user-3',
+    displayName: 'Sam Patel',
+    totalCost: 88,
+    submittedAt: '2026-06-01T12:00:00Z',
+    updatedAt: '2026-06-01T12:00:00Z',
+    currentPoints: 0,
+    maxPossiblePoints: 50,
+    teamsAlive: 6,
+    rank: 3,
+    strategy: 'Value Hunting',
+  },
+];

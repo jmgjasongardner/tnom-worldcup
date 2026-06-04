@@ -1,0 +1,69 @@
+:root {
+  /* Colors */
+  --color-navy-900: #062B3A;
+  --color-teal-800: #075E67;
+  --color-teal-500: #00A6A6;
+  --color-aqua-300: #7FDBDA;
+  --color-gold-400: #F4C542;
+  --color-bg: #F7FAFA;
+  --color-card: #FFFFFF;
+  --color-border: #DDE7E8;
+  --color-text-primary: #062B3A;
+  --color-text-secondary: #4A6572;
+  --color-text-muted: #8FA4AC;
+  --color-success: #2EAD6B;
+  --color-warning: #F4C542;
+  --color-error: #D9534F;
+  --color-eliminated: #A6AEB2;
+
+  /* Border radius */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-soft: 0 8px 24px rgba(6, 43, 58, 0.10);
+  --shadow-card: 0 4px 14px rgba(6, 43, 58, 0.08);
+  --shadow-sm: 0 2px 6px rgba(6, 43, 58, 0.06);
+
+  /* Typography */
+  --font-body: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Layout */
+  --max-width: 1280px;
+  --sidebar-width: 320px;
+  --header-height: 64px;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
+}

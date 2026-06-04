@@ -1,0 +1,15 @@
+[project]
+name = "tnom-worldcup"
+version = "0.1.0"
+description = "Default template for PDM package"
+authors = [
+    {name = "Jason Gardner", email = "jmgjasongardner@gmail.com"},
+]
+dependencies = ["polars>=1.41.2"]
+requires-python = "==3.12.*"
+readme = "README.md"
+license = {text = "MIT"}
+
+
+[tool.pdm]
+distribution = false

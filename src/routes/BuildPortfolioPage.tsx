@@ -1,29 +1,30 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PageContainer } from '../components/layout/PageContainer';
 import { TeamCard } from '../components/teams/TeamCard';
 import { TeamFilters } from '../components/teams/TeamFilters';
 import { PortfolioSidebar } from '../components/portfolio/PortfolioSidebar';
-import { SignInPanel } from '../components/auth/SignInPanel';
 import { LoadingState } from '../components/ui/LoadingState';
-import { useAuth } from '../contexts/AuthContext';
 import { fetchTeams, fetchAppSettings } from '../lib/teamsApi';
 import { fetchMyEntry, submitPortfolio } from '../lib/entriesApi';
 import { sortTeams, filterTeams } from '../lib/sorting';
-import { MAX_BUDGET, REQUIRED_TEAM_COUNT } from '../lib/validation';
+import { MAX_BUDGET, REQUIRED_TEAM_COUNT, EMAIL_DOMAIN } from '../lib/validation';
 import { TEAMS as STATIC_TEAMS } from '../data/teams';
 import type { Team, SortOption } from '../types/domain';
 
-export function BuildPortfolioPage() {
-  const { user, profile, loading: authLoading } = useAuth();
+const LS_EMAIL = 'tnom_wc_email';
+const LS_NAME  = 'tnom_wc_display_name';
 
+export function BuildPortfolioPage() {
   const [teams, setTeams] = useState<Team[]>(STATIC_TEAMS);
   const [picksLocked, setPicksLocked] = useState(false);
   const [selectedTeams, setSelectedTeams] = useState<Team[]>([]);
-  const [displayName, setDisplayName] = useState('');
-  const [existingEntryId, setExistingEntryId] = useState<string | null>(null);
+  const [email, setEmail] = useState(() => localStorage.getItem(LS_EMAIL) ?? '');
+  const [displayName, setDisplayName] = useState(() => localStorage.getItem(LS_NAME) ?? '');
+  const [hasEntry, setHasEntry] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
+  const [entryLoading, setEntryLoading] = useState(false);
 
   // Filter/sort state
   const [sortOption, setSortOption] = useState<SortOption>('cost-desc');
@@ -38,66 +39,77 @@ export function BuildPortfolioPage() {
         setTeams(teamData);
         setPicksLocked(settings.picksLocked);
       })
-      .catch(() => {
-        // fallback to static data already set as default state
-      })
+      .catch(() => {})
       .finally(() => setDataLoading(false));
   }, []);
 
-  // Load existing entry when user is known
-  useEffect(() => {
-    if (!user) return;
-    fetchMyEntry(user.id).then((entry) => {
-      if (!entry) return;
-      setExistingEntryId(entry.id);
-      setDisplayName(entry.displayName);
-      // Map saved team IDs back to Team objects
-      const savedTeams = entry.teamIds
-        .map((id) => teams.find((t) => t.id === id))
-        .filter(Boolean) as Team[];
-      setSelectedTeams(savedTeams);
-    });
-  }, [user, teams]);
-
-  // Pre-fill display name from profile
-  useEffect(() => {
-    if (profile?.display_name && !displayName) {
-      setDisplayName(profile.display_name);
+  // Load existing entry when email is a valid Technomics address
+  const loadEntry = useCallback(async (emailVal: string, teamList: Team[]) => {
+    if (!emailVal.toLowerCase().endsWith(EMAIL_DOMAIN)) return;
+    setEntryLoading(true);
+    try {
+      const entry = await fetchMyEntry(emailVal);
+      if (entry) {
+        setHasEntry(true);
+        setDisplayName(entry.displayName);
+        localStorage.setItem(LS_NAME, entry.displayName);
+        const savedTeams = entry.teamIds
+          .map((id) => teamList.find((t) => t.id === id))
+          .filter(Boolean) as Team[];
+        setSelectedTeams(savedTeams);
+      }
+    } finally {
+      setEntryLoading(false);
     }
-  }, [profile, displayName]);
+  }, []);
+
+  // Auto-load when we have both teams and a saved email
+  useEffect(() => {
+    if (!dataLoading && email) {
+      loadEntry(email, teams);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataLoading]);
 
   const totalCost = selectedTeams.reduce((s, t) => s + t.cost, 0);
 
   const handleToggle = (team: Team) => {
     if (picksLocked) return;
     setSelectedTeams((prev) => {
-      if (prev.find((t) => t.id === team.id)) {
-        return prev.filter((t) => t.id !== team.id);
-      }
+      if (prev.find((t) => t.id === team.id)) return prev.filter((t) => t.id !== team.id);
       return [...prev, team];
     });
     setSubmitMessage(null);
   };
 
+  const handleEmailBlur = () => {
+    if (email.toLowerCase().endsWith(EMAIL_DOMAIN)) {
+      localStorage.setItem(LS_EMAIL, email.toLowerCase().trim());
+      loadEntry(email, teams);
+    }
+  };
+
   const handleSubmit = async () => {
-    if (!user) return;
     if (selectedTeams.length !== REQUIRED_TEAM_COUNT || totalCost > MAX_BUDGET) return;
+    if (!email.toLowerCase().endsWith(EMAIL_DOMAIN)) return;
 
     setSubmitting(true);
     setSubmitMessage(null);
 
-    const { error } = await submitPortfolio(user.id, displayName, selectedTeams);
+    const result = await submitPortfolio(email, displayName, selectedTeams);
 
     setSubmitting(false);
-    if (error) {
-      setSubmitMessage({ type: 'error', text: error });
+    if (!result.success) {
+      setSubmitMessage({ type: 'error', text: result.error ?? 'Something went wrong.' });
     } else {
-      setExistingEntryId('saved'); // mark as submitted
+      localStorage.setItem(LS_EMAIL, email.toLowerCase().trim());
+      localStorage.setItem(LS_NAME, displayName.trim());
+      setHasEntry(true);
       setSubmitMessage({
         type: 'success',
-        text: existingEntryId
-          ? 'Portfolio updated! You can keep editing until picks lock.'
-          : 'Portfolio submitted! You can edit until picks lock.',
+        text: hasEntry
+          ? '✓ Portfolio updated! You can keep editing until picks lock.'
+          : '✓ Portfolio submitted! You can edit until picks lock.',
       });
     }
   };
@@ -109,12 +121,10 @@ export function BuildPortfolioPage() {
     !selectedTeams.find((t) => t.id === team.id) &&
     (selectedTeams.length >= REQUIRED_TEAM_COUNT || totalCost + team.cost > MAX_BUDGET);
 
-  if (authLoading || dataLoading) {
-    return (
-      <PageContainer>
-        <LoadingState message="Loading…" />
-      </PageContainer>
-    );
+  const emailValid = email.toLowerCase().trim().endsWith(EMAIL_DOMAIN);
+
+  if (dataLoading) {
+    return <PageContainer><LoadingState message="Loading…" /></PageContainer>;
   }
 
   return (
@@ -124,25 +134,33 @@ export function BuildPortfolioPage() {
         <p className="page-subtitle">Select exactly 6 teams. Stay under $100.</p>
       </div>
 
-      {/* Sign-in gate */}
-      {!user && (
-        <div style={{ maxWidth: 480, marginBottom: '1.5rem' }}>
-          <SignInPanel />
-        </div>
-      )}
-
-      {/* Display name (shown when signed in and no existing entry) */}
-      {user && !existingEntryId && (
-        <div className="card" style={{ marginBottom: '1.5rem', maxWidth: 480 }}>
-          <div className="card-body">
-            <h2 style={{ fontSize: 'var(--font-size-base)', marginBottom: '0.75rem' }}>
-              Your display name
-            </h2>
-            <label
-              htmlFor="display-name"
-              style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}
-            >
-              How you'll appear on the leaderboard
+      {/* Identity card */}
+      <div className="card" style={{ marginBottom: '1.5rem', maxWidth: 520 }}>
+        <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div>
+            <label htmlFor="pick-email" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
+              Technomics email
+            </label>
+            <input
+              id="pick-email"
+              type="email"
+              className="input"
+              placeholder="you@technomics.net"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setSubmitMessage(null); }}
+              onBlur={handleEmailBlur}
+              disabled={picksLocked}
+              autoComplete="email"
+            />
+            {email && !emailValid && (
+              <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-error)', marginTop: '0.25rem' }}>
+                Please use your @technomics.net email.
+              </p>
+            )}
+          </div>
+          <div>
+            <label htmlFor="display-name" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
+              Display name <span style={{ fontWeight: 400, color: 'var(--color-text-muted)' }}>(shown on leaderboard)</span>
             </label>
             <input
               id="display-name"
@@ -151,20 +169,29 @@ export function BuildPortfolioPage() {
               placeholder="e.g. Jason G."
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
+              disabled={picksLocked}
             />
           </div>
+          {entryLoading && (
+            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>Loading your picks…</p>
+          )}
+          {hasEntry && !entryLoading && (
+            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-success)' }}>
+              ✓ Portfolio loaded — you can edit until picks lock.
+            </p>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* Submit / update message */}
+      {/* Submit message */}
       {submitMessage && (
         <div
           className={`submit-message submit-message--${submitMessage.type}`}
           role="alert"
           aria-live="polite"
-          style={{ marginBottom: '1.5rem', maxWidth: 480 }}
+          style={{ marginBottom: '1.5rem', maxWidth: 520 }}
         >
-          {submitMessage.type === 'success' ? '✓' : '⚠'} {submitMessage.text}
+          {submitMessage.text}
         </div>
       )}
 
@@ -207,12 +234,12 @@ export function BuildPortfolioPage() {
         <div className="build-sidebar">
           <PortfolioSidebar
             selectedTeams={selectedTeams}
-            email={user?.email ?? ''}
+            email={email}
             displayName={displayName}
             picksLocked={picksLocked}
-            submitted={!!existingEntryId}
+            submitted={hasEntry}
             submitting={submitting}
-            signedIn={!!user}
+            signedIn={emailValid}
             onRemove={handleToggle}
             onSubmit={handleSubmit}
           />

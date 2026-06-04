@@ -1,10 +1,19 @@
 import { Link } from 'react-router-dom';
 import { Nav } from './Nav';
-import { useAuth } from '../../contexts/AuthContext';
-import { signOut } from '../../lib/auth';
+
+const LS_EMAIL = 'tnom_wc_email';
+const LS_NAME  = 'tnom_wc_display_name';
 
 export function Header() {
-  const { user, profile, loading } = useAuth();
+  const savedEmail = localStorage.getItem(LS_EMAIL);
+  const savedName  = localStorage.getItem(LS_NAME);
+  const displayLabel = savedName ?? savedEmail?.split('@')[0] ?? null;
+
+  const handleSignOut = () => {
+    localStorage.removeItem(LS_EMAIL);
+    localStorage.removeItem(LS_NAME);
+    window.location.href = '/';
+  };
 
   return (
     <header className="header">
@@ -20,24 +29,22 @@ export function Header() {
         <Nav />
 
         <div className="header-auth">
-          {!loading && user ? (
+          {displayLabel ? (
             <div className="header-user">
-              <span className="header-user-name">
-                {profile?.display_name ?? user.email?.split('@')[0]}
-              </span>
+              <span className="header-user-name">{displayLabel}</span>
               <button
                 className="btn btn--ghost btn--sm"
-                onClick={signOut}
+                onClick={handleSignOut}
                 style={{ color: 'rgba(255,255,255,0.6)', fontSize: 'var(--font-size-xs)' }}
               >
                 Sign out
               </button>
             </div>
-          ) : !loading ? (
+          ) : (
             <Link to="/pick" className="btn btn--secondary btn--sm" style={{ flexShrink: 0 }}>
               Sign in
             </Link>
-          ) : null}
+          )}
         </div>
       </div>
     </header>

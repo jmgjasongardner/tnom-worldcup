@@ -6,53 +6,86 @@ import { LoadingState } from '../components/ui/LoadingState';
 import { Button } from '../components/ui/Button';
 import { TierBadge } from '../components/ui/Badge';
 import { TeamFlag } from '../components/teams/TeamFlag';
-import { useAuth } from '../contexts/AuthContext';
 import { fetchMyEntry } from '../lib/entriesApi';
 import { TEAM_MAP } from '../data/teams';
 import type { Team } from '../types/domain';
 
+const LS_EMAIL = 'tnom_wc_email';
+
 export function MyPortfolioPage() {
-  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [teams, setTeams] = useState<Team[]>([]);
   const [displayName, setDisplayName] = useState('');
   const [totalCost, setTotalCost] = useState(0);
   const [hasEntry, setHasEntry] = useState(false);
+  const [email, setEmail] = useState('');
+  const [emailInput, setEmailInput] = useState('');
 
+  // Try to load from localStorage on mount
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) { setLoading(false); return; }
-
-    fetchMyEntry(user.id).then((entry) => {
-      if (entry) {
-        setHasEntry(true);
-        setDisplayName(entry.displayName);
-        setTotalCost(entry.totalCost);
-        const entryTeams = entry.teamIds
-          .map((id) => TEAM_MAP[id])
-          .filter(Boolean) as Team[];
-        setTeams(entryTeams);
-      }
+    const saved = localStorage.getItem(LS_EMAIL);
+    if (saved) {
+      setEmail(saved);
+      loadPortfolio(saved);
+    } else {
       setLoading(false);
-    });
-  }, [user, authLoading]);
+    }
+  }, []);
 
-  if (authLoading || loading) {
+  async function loadPortfolio(e: string) {
+    setLoading(true);
+    const entry = await fetchMyEntry(e);
+    if (entry) {
+      setHasEntry(true);
+      setDisplayName(entry.displayName);
+      setTotalCost(entry.totalCost);
+      const entryTeams = entry.teamIds
+        .map((id) => TEAM_MAP[id])
+        .filter(Boolean) as Team[];
+      setTeams(entryTeams);
+    } else {
+      setHasEntry(false);
+    }
+    setLoading(false);
+  }
+
+  const handleLookup = () => {
+    const trimmed = emailInput.trim().toLowerCase();
+    setEmail(trimmed);
+    localStorage.setItem(LS_EMAIL, trimmed);
+    loadPortfolio(trimmed);
+  };
+
+  if (loading) {
     return <PageContainer width="narrow"><LoadingState /></PageContainer>;
   }
 
-  if (!user) {
+  // No saved email — show lookup prompt
+  if (!email) {
     return (
       <PageContainer width="narrow">
         <div className="page-header">
           <h1 className="page-title">My Portfolio</h1>
         </div>
-        <EmptyState
-          icon="🔑"
-          title="Sign in to view your portfolio"
-          description="Use your Technomics email to sign in and access your picks."
-          action={<Link to="/pick"><Button variant="primary">Sign In</Button></Link>}
-        />
+        <div className="card">
+          <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
+              Enter your Technomics email to view your picks.
+            </p>
+            <input
+              type="email"
+              className="input"
+              placeholder="you@technomics.net"
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
+              autoFocus
+            />
+            <Button variant="primary" onClick={handleLookup} disabled={!emailInput.includes('@technomics.net')}>
+              View Portfolio
+            </Button>
+          </div>
+        </div>
       </PageContainer>
     );
   }
@@ -66,9 +99,18 @@ export function MyPortfolioPage() {
         <EmptyState
           icon="📋"
           title="No portfolio yet"
-          description="You haven't submitted a portfolio. Build one before the opening kickoff on June 11."
+          description={`No portfolio found for ${email}. Build one before the opening kickoff on June 11.`}
           action={<Link to="/pick"><Button variant="primary">Build Portfolio</Button></Link>}
         />
+        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+          <button
+            className="btn btn--ghost"
+            style={{ fontSize: 'var(--font-size-sm)' }}
+            onClick={() => { setEmail(''); localStorage.removeItem(LS_EMAIL); }}
+          >
+            Try a different email
+          </button>
+        </div>
       </PageContainer>
     );
   }
@@ -109,6 +151,16 @@ export function MyPortfolioPage() {
         <div className="card-body" style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
           Scoring and leaderboard unlock after the opening kickoff on June 11.
         </div>
+      </div>
+
+      <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+        <button
+          className="btn btn--ghost"
+          style={{ fontSize: 'var(--font-size-sm)' }}
+          onClick={() => { setEmail(''); localStorage.removeItem(LS_EMAIL); }}
+        >
+          Switch account
+        </button>
       </div>
     </PageContainer>
   );

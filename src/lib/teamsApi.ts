@@ -13,6 +13,7 @@ function withExtras(teams: Team[]): Team[] {
       fifaRank: t.fifaRank ?? extra.fifaRank ?? null,
       titleOdds: t.titleOdds ?? extra.titleOdds ?? null,
       groupWinOdds: t.groupWinOdds ?? extra.groupWinOdds ?? null,
+      advanceOdds: t.advanceOdds ?? extra.advanceOdds ?? null,
     };
   });
 }
@@ -31,6 +32,7 @@ function rowToTeam(row: Record<string, unknown>): Team {
     flagUrl: (row.flag_url as string) ?? null,
     fifaRank: (row.fifa_rank as number) ?? null,
     groupWinOdds: (row.group_win_odds as string) ?? null,
+    advanceOdds: null, // not stored in DB, always comes from teamExtras
     titleOdds: (row.title_odds as string) ?? null,
     whyPick: (row.why_pick as string) ?? null,
     poolAngle: (row.pool_angle as string) ?? null,

@@ -52,6 +52,7 @@ export interface Team {
   flagUrl: string | null;
   fifaRank: number | null;
   groupWinOdds: string | null;
+  advanceOdds: string | null;
   titleOdds: string | null;
   whyPick: string | null;
   poolAngle: string | null;

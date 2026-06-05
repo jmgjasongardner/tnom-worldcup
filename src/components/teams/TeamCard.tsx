@@ -86,6 +86,10 @@ export function TeamCard({ team, isSelected, isDisabled, onToggle, picksLocked =
               <span className="team-info-value">{team.groupWinOdds ?? '—'}</span>
             </div>
             <div className="team-info-item">
+              <span className="team-info-label">Advance Odds</span>
+              <span className="team-info-value">{team.advanceOdds ?? '—'}</span>
+            </div>
+            <div className="team-info-item">
               <span className="team-info-label">Title Odds</span>
               <span className="team-info-value">{team.titleOdds ?? '—'}</span>
             </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { Team, SortOption } from '../../types/domain';
 import { TierBadge } from '../ui/Badge';
 import { sortTeams, filterTeams } from '../../lib/sorting';
@@ -55,7 +56,7 @@ export function TeamCostTable({ teams }: TeamCostTableProps) {
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <TeamFlag teamId={team.id} flagEmoji={team.flagEmoji} country={team.country} size="sm" />
-                      <strong>{team.country}</strong>
+                      <Link to={`/teams/${team.id}`} className="lb-name-link">{team.country}</Link>
                     </div>
                   </td>
                   <td>

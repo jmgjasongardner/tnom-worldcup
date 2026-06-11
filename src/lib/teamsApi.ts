@@ -4,7 +4,7 @@ import { TEAMS as STATIC_TEAMS } from '../data/teams';
 import { TEAM_EXTRAS } from '../data/teamExtras';
 
 /** Enrich static team data with FIFA ranks and betting odds. */
-function withExtras(teams: Team[]): Team[] {
+export function withExtras(teams: Team[]): Team[] {
   return teams.map((t) => {
     const extra = TEAM_EXTRAS[t.id];
     if (!extra) return t;

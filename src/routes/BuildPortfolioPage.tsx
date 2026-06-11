@@ -6,6 +6,7 @@ import { PortfolioSidebar } from '../components/portfolio/PortfolioSidebar';
 import { LoadingState } from '../components/ui/LoadingState';
 import { Button } from '../components/ui/Button';
 import { fetchTeams, fetchAppSettings } from '../lib/teamsApi';
+import { resolvePicksLocked } from '../lib/devUtils';
 import { fetchMyEntry, submitPortfolio } from '../lib/entriesApi';
 import { sortTeams, filterTeams } from '../lib/sorting';
 import { MAX_BUDGET, REQUIRED_TEAM_COUNT, EMAIL_DOMAIN } from '../lib/validation';
@@ -46,7 +47,7 @@ export function BuildPortfolioPage() {
     Promise.all([fetchTeams(), fetchAppSettings()])
       .then(([teamData, settings]) => {
         setTeams(teamData);
-        setPicksLocked(settings.picksLocked);
+        setPicksLocked(resolvePicksLocked(settings.picksLocked));
       })
       .catch(() => {})
       .finally(() => setDataLoading(false));

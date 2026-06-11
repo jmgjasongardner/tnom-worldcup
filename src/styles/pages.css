@@ -797,3 +797,161 @@
 .leaderboard-pre-lock-stats .stat-card {
   min-width: 140px;
 }
+
+/* ===== LEADERBOARD (post-lock) ===== */
+.lb-tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+  border-bottom: 2px solid var(--color-border);
+  padding-bottom: 0;
+}
+
+.lb-tab {
+  padding: var(--space-2) var(--space-4);
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.lb-tab:hover { color: var(--color-navy-900); }
+.lb-tab.active {
+  color: var(--color-teal-800);
+  border-bottom-color: var(--color-teal-500);
+}
+
+.lb-summary-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.lb-summary-cards .stat-card { min-width: 140px; flex: 1; }
+
+.lb-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+}
+
+.lb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.lb-table th {
+  background: rgba(6, 43, 58, 0.04);
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.lb-table th.lb-sortable:hover { color: var(--color-navy-900); }
+.lb-table th.lb-sortable.active { color: var(--color-teal-800); }
+
+.lb-row td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.lb-row:last-child td { border-bottom: none; }
+.lb-row:hover td { background: rgba(0, 166, 166, 0.04); }
+
+.lb-row--eliminated td { color: var(--color-eliminated); }
+.lb-row--eliminated .lb-name-link { color: var(--color-eliminated); }
+.lb-row--highlighted td { background: rgba(0, 166, 166, 0.08); }
+
+.lb-num { text-align: right !important; }
+.lb-pts { font-weight: var(--font-weight-semibold); color: var(--color-teal-800) !important; }
+.lb-rank { font-weight: 700; color: var(--color-navy-900); text-align: center !important; }
+.lb-email { color: var(--color-text-muted); font-size: var(--font-size-xs); font-family: monospace; }
+
+.lb-name-link {
+  color: var(--color-navy-900);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+.lb-name-link:hover { color: var(--color-teal-800); text-decoration: underline; }
+
+.lb-flags {
+  display: flex;
+  gap: 3px;
+  margin-top: 3px;
+  flex-wrap: wrap;
+}
+
+.lb-status {
+  display: inline-block;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.lb-status--alive {
+  background: rgba(46, 173, 107, 0.12);
+  color: var(--color-success);
+}
+
+.lb-status--out {
+  background: rgba(166, 174, 178, 0.2);
+  color: var(--color-eliminated);
+}
+
+/* ===== TEAM DETAIL PAGE ===== */
+.team-detail-hero {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.team-detail-hero-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ===== PARTICIPANT PORTFOLIO CARD ===== */
+.participant-team-card {
+  transition: box-shadow 0.15s, border-color 0.15s;
+  cursor: pointer;
+}
+
+.participant-team-card:hover {
+  border-color: var(--color-teal-500);
+  box-shadow: var(--shadow-soft);
+}
+
+/* Fix: participant cell shouldn't expand indefinitely */
+.lb-participant-cell {
+  max-width: 220px;
+  white-space: normal !important;
+}
+
+.lb-table {
+  table-layout: auto;
+  min-width: 600px;  /* forces scroll on small screens rather than hiding columns */
+}

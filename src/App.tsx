@@ -8,6 +8,7 @@ import { MyPortfolioPage } from './routes/MyPortfolioPage';
 import { ParticipantPortfolioPage } from './routes/ParticipantPortfolioPage';
 import { AdminPage } from './routes/AdminPage';
 import { SchedulePage } from './routes/SchedulePage';
+import { TeamDetailPage } from './routes/TeamDetailPage';
 
 export function App() {
   return (
@@ -17,10 +18,11 @@ export function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/pick" element={<BuildPortfolioPage />} />
           <Route path="/teams" element={<TeamsPage />} />
+          <Route path="/teams/:teamId" element={<TeamDetailPage />} />
           <Route path="/schedule" element={<SchedulePage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/my-portfolio" element={<MyPortfolioPage />} />
-          <Route path="/participants/:entryId" element={<ParticipantPortfolioPage />} />
+          <Route path="/participants/:emailUser" element={<ParticipantPortfolioPage />} />
           <Route path="/admin" element={<AdminPage />} />
         </Routes>
       </AppShell>

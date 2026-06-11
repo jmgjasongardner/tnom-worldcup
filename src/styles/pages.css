@@ -955,3 +955,15 @@
   table-layout: auto;
   min-width: 600px;  /* forces scroll on small screens rather than hiding columns */
 }
+
+/* Diversity score badge */
+.lb-diversity {
+  display: inline-block;
+  padding: 0.2em 0.55em;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: var(--font-size-xs);
+}
+.lb-diversity--high  { background: rgba(46, 173, 107, 0.15); color: #1a7a4a; }
+.lb-diversity--mid   { background: rgba(244, 197, 66, 0.2);  color: #8a6d00; }
+.lb-diversity--low   { background: rgba(166, 174, 178, 0.2); color: var(--color-text-muted); }

@@ -16,6 +16,7 @@ import { supabase } from '../lib/supabaseClient';
 import type { Team } from '../types/domain';
 
 type TeamSortKey = 'cost' | 'group' | 'picks' | 'points' | 'maxPossible' | 'status';
+type PortfolioSortKey = 'rank' | 'participant' | 'email' | 'cost' | 'points' | 'maxPossible' | 'alive' | 'diversity';
 
 function stageLabel(stage: string, isAlive: boolean): string {
   if (!isAlive) return 'Eliminated';
@@ -65,20 +66,76 @@ function PreLockView({ entryCount, loading }: { entryCount: number | null; loadi
 // ── Portfolios tab ──────────────────────────────────────────────────────────
 function PortfoliosTab({ entries }: { entries: LeaderboardEntry[] }) {
   const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState<PortfolioSortKey>('rank');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  function handleSort(key: PortfolioSortKey) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      // Default directions: text cols asc, numeric cols desc
+      setSortDir(key === 'participant' || key === 'email' ? 'asc' : key === 'rank' ? 'asc' : 'desc');
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    if (!q) return entries;
-    return entries.filter(
-      (e) =>
-        e.displayName.toLowerCase().includes(q) ||
-        e.emailUser.toLowerCase().includes(q)
-    );
-  }, [entries, search]);
+    const base = q
+      ? entries.filter(
+          (e) =>
+            e.displayName.toLowerCase().includes(q) ||
+            e.emailUser.toLowerCase().includes(q),
+        )
+      : entries;
 
-  const leader = entries[0];
-  const mostAlive = [...entries].sort((a, b) => b.teamsAlive - a.teamsAlive)[0];
-  const highestMax = [...entries].sort((a, b) => b.maxPossiblePoints - a.maxPossiblePoints)[0];
+    const d = sortDir === 'asc' ? 1 : -1;
+    return [...base].sort((a, b) => {
+      let primary = 0;
+      switch (sortKey) {
+        case 'rank':        primary = d * (a.rank - b.rank); break;
+        case 'participant': primary = d * a.displayName.localeCompare(b.displayName); break;
+        case 'email':       primary = d * a.emailUser.localeCompare(b.emailUser); break;
+        case 'cost':        primary = d * (a.totalCost - b.totalCost); break;
+        case 'points':      primary = d * (a.currentPoints - b.currentPoints); break;
+        case 'maxPossible': primary = d * (a.maxPossiblePoints - b.maxPossiblePoints); break;
+        case 'alive':       primary = d * (a.teamsAlive - b.teamsAlive); break;
+        case 'diversity':   primary = d * (a.diversityScore - b.diversityScore); break;
+      }
+      if (primary !== 0) return primary;
+      // Secondary: points desc, then participant asc
+      return (b.currentPoints - a.currentPoints) || a.displayName.localeCompare(b.displayName);
+    });
+  }, [entries, search, sortKey, sortDir]);
+
+  const leaderPts     = entries[0]?.currentPoints ?? 0;
+  const leaders       = entries.filter((e) => e.currentPoints === leaderPts);
+
+  const maxAlive      = Math.max(...entries.map((e) => e.teamsAlive));
+  const mostAliveList = entries.filter((e) => e.teamsAlive === maxAlive);
+
+  const maxPossible   = Math.max(...entries.map((e) => e.maxPossiblePoints));
+  const highestMaxList = entries.filter((e) => e.maxPossiblePoints === maxPossible);
+
+  function cardName(list: LeaderboardEntry[]) {
+    return list.length > 1 ? `${list.length} tied` : list[0].displayName;
+  }
+
+  function SortTh({
+    label, col, numeric, title,
+  }: { label: string; col: PortfolioSortKey; numeric?: boolean; title?: string }) {
+    const active = sortKey === col;
+    return (
+      <th
+        className={`lb-sortable ${active ? 'active' : ''} ${numeric ? 'lb-num' : ''}`}
+        onClick={() => handleSort(col)}
+        style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+        title={title}
+      >
+        {label} {active ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+      </th>
+    );
+  }
 
   return (
     <div>
@@ -87,22 +144,18 @@ function PortfoliosTab({ entries }: { entries: LeaderboardEntry[] }) {
         <div className="lb-summary-cards">
           <div className="stat-card">
             <div className="stat-card-label">🥇 Current Leader</div>
-            <div className="stat-card-value" style={{ fontSize: 'var(--font-size-lg)' }}>{leader.displayName}</div>
-            <div className="stat-card-sub">{leader.currentPoints} pts</div>
+            <div className="stat-card-value" style={{ fontSize: 'var(--font-size-lg)' }}>{cardName(leaders)}</div>
+            <div className="stat-card-sub">{leaderPts} pts</div>
           </div>
           <div className="stat-card">
             <div className="stat-card-label">💪 Most Alive</div>
-            <div className="stat-card-value" style={{ fontSize: 'var(--font-size-lg)' }}>{mostAlive.displayName}</div>
-            <div className="stat-card-sub">{mostAlive.teamsAlive} / 6 teams</div>
+            <div className="stat-card-value" style={{ fontSize: 'var(--font-size-lg)' }}>{cardName(mostAliveList)}</div>
+            <div className="stat-card-sub">{maxAlive} / 6 teams</div>
           </div>
           <div className="stat-card">
             <div className="stat-card-label">📈 Highest Ceiling</div>
-            <div className="stat-card-value" style={{ fontSize: 'var(--font-size-lg)' }}>{highestMax.displayName}</div>
-            <div className="stat-card-sub">{highestMax.maxPossiblePoints} max pts</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-card-label">📋 Entries</div>
-            <div className="stat-card-value">{entries.length}</div>
+            <div className="stat-card-value" style={{ fontSize: 'var(--font-size-lg)' }}>{cardName(highestMaxList)}</div>
+            <div className="stat-card-sub">{maxPossible} max pts</div>
           </div>
         </div>
       )}
@@ -122,13 +175,14 @@ function PortfoliosTab({ entries }: { entries: LeaderboardEntry[] }) {
         <table className="lb-table">
           <thead>
             <tr>
-              <th style={{ width: 48 }}>Rank</th>
-              <th>Participant</th>
-              <th>Email</th>
-              <th className="lb-num">Cost</th>
-              <th className="lb-num">Points</th>
-              <th className="lb-num">Max Possible</th>
-              <th className="lb-num">Alive</th>
+              <SortTh label="Rank"         col="rank" />
+              <SortTh label="Participant"  col="participant" />
+              <SortTh label="Email"        col="email" />
+              <SortTh label="Cost"         col="cost"        numeric />
+              <SortTh label="Points"       col="points"      numeric />
+              <SortTh label="Max Possible" col="maxPossible" numeric />
+              <SortTh label="Alive"        col="alive"       numeric />
+              <SortTh label="Diversity"    col="diversity"   numeric title="Popularity-weighted uniqueness (0–100). For each of your 6 teams, score = 1 − (% of all participants who picked that team). Average those 6 values × 100. A score of 100 means every pick was unique to you; a score of 0 means every pick was taken by all participants. High scores reward contrarian portfolios; low scores indicate chalk-heavy picks." />
               <th style={{ width: 48 }}></th>
             </tr>
           </thead>
@@ -155,6 +209,11 @@ function PortfoliosTab({ entries }: { entries: LeaderboardEntry[] }) {
                 <td className="lb-num lb-pts">{e.currentPoints}</td>
                 <td className="lb-num">{e.maxPossiblePoints}</td>
                 <td className="lb-num">{e.teamsAlive} / 6</td>
+                <td className="lb-num">
+                  <span className={`lb-diversity lb-diversity--${e.diversityScore >= 75 ? 'high' : e.diversityScore >= 50 ? 'mid' : 'low'}`}>
+                    {e.diversityScore}
+                  </span>
+                </td>
                 <td>
                   <Link to={`/participants/${e.emailUser}`} className="btn btn--ghost btn--sm">View</Link>
                 </td>

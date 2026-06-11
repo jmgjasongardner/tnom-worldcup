@@ -15,6 +15,8 @@ export interface LeaderboardEntry {
   maxPossiblePoints: number;
   teamsAlive: number;
   rank: number;
+  /** Average pairwise Jaccard distance vs all other portfolios, 0–100. Higher = more unique. */
+  diversityScore: number;
 }
 
 export interface TeamLeaderboardRow {
@@ -109,15 +111,24 @@ async function fetchAllTeamStatus(): Promise<Record<string, TeamStatusRow>> {
 
 /** Fetch all entries with their teams, enriched with scoring data. */
 export async function fetchLeaderboardEntries(): Promise<LeaderboardEntry[]> {
-  const [{ data: entriesData }, teamMap, statusMap] = await Promise.all([
+  const [{ data: entriesData }, teamMap, statusMap, { data: allPicksData }] = await Promise.all([
     supabase
       .from('entries')
       .select('id, display_name, email, total_cost, entry_teams(team_id)'),
     buildTeamMap(),
     fetchAllTeamStatus(),
+    supabase.from('entry_teams').select('team_id'),
   ]);
 
   if (!entriesData) return [];
+
+  // Compute pick rates for popularity-weighted diversity
+  const totalEntries = entriesData.length;
+  const pickCounts: Record<string, number> = {};
+  for (const row of allPicksData ?? []) {
+    const id = row.team_id as string;
+    pickCounts[id] = (pickCounts[id] ?? 0) + 1;
+  }
 
   const entries: LeaderboardEntry[] = entriesData.map((row) => {
     const teamIds = ((row.entry_teams as { team_id: string }[]) ?? []).map((et) => et.team_id);
@@ -146,6 +157,13 @@ export async function fetchLeaderboardEntries(): Promise<LeaderboardEntry[]> {
       maxPossiblePoints,
       teamsAlive,
       rank: 0, // assigned below
+      diversityScore: totalEntries > 1
+        ? Math.round(
+            (teams.reduce((sum, t) => sum + (1 - (pickCounts[t.id] ?? 0) / totalEntries), 0) /
+              Math.max(teams.length, 1)) *
+              100,
+          )
+        : 0,
     };
   });
 
@@ -211,6 +229,7 @@ export async function fetchParticipantEntry(emailUserParam: string): Promise<Lea
     maxPossiblePoints,
     teamsAlive,
     rank: 0,
+    diversityScore: 0,
   };
 }
 

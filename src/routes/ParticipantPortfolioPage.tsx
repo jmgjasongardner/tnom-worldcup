@@ -103,6 +103,15 @@ export function ParticipantPortfolioPage() {
           <div className="stat-card-label">Portfolio Cost</div>
           <div className="stat-card-value">${totalCost}</div>
         </div>
+        {entry.diversityScore > 0 && (
+          <div className="stat-card">
+            <div className="stat-card-label" title="Average Jaccard distance vs all other portfolios. Higher = more unique.">Diversity Score</div>
+            <div className="stat-card-value">{entry.diversityScore}</div>
+            <div className="stat-card-sub">
+              {entry.diversityScore >= 75 ? 'Highly unique' : entry.diversityScore >= 50 ? 'Moderately unique' : 'Similar to field'}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Team cards */}

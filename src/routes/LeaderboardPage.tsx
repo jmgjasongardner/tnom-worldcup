@@ -66,8 +66,8 @@ function PreLockView({ entryCount, loading }: { entryCount: number | null; loadi
 // ── Portfolios tab ──────────────────────────────────────────────────────────
 function PortfoliosTab({ entries }: { entries: LeaderboardEntry[] }) {
   const [search, setSearch] = useState('');
-  const [sortKey, setSortKey] = useState<PortfolioSortKey>('rank');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [sortKey, setSortKey] = useState<PortfolioSortKey>('points');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   function handleSort(key: PortfolioSortKey) {
     if (key === sortKey) {
@@ -103,8 +103,11 @@ function PortfoliosTab({ entries }: { entries: LeaderboardEntry[] }) {
         case 'diversity':   primary = d * (a.diversityScore - b.diversityScore); break;
       }
       if (primary !== 0) return primary;
-      // Secondary: points desc, then participant asc
-      return (b.currentPoints - a.currentPoints) || a.displayName.localeCompare(b.displayName);
+      // Secondary sort cascade: points desc → max possible desc → alive desc → participant asc
+      return (b.currentPoints - a.currentPoints)
+          || (b.maxPossiblePoints - a.maxPossiblePoints)
+          || (b.teamsAlive - a.teamsAlive)
+          || a.displayName.localeCompare(b.displayName);
     });
   }, [entries, search, sortKey, sortDir]);
 

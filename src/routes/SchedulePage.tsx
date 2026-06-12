@@ -5,6 +5,7 @@ import { SCHEDULE, GROUPS, type GroupLetter } from '../data/schedule';
 import { fetchTeams } from '../lib/teamsApi';
 import { TEAMS as STATIC_TEAMS } from '../data/teams';
 import { supabase } from '../lib/supabaseClient';
+import { fetchAllPickers } from '../lib/leaderboardApi';
 import type { Team } from '../types/domain';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -56,6 +57,8 @@ export function SchedulePage() {
   const [activeGroup, setActiveGroup] = useState<GroupLetter | 'ALL'>('ALL');
   const [resultMap, setResultMap]   = useState<Map<string, MatchResult>>(new Map());
   const [resultsLoaded, setResultsLoaded] = useState(false);
+  const [pickerMap, setPickerMap]   = useState<Record<string, string[]>>({});
+  const [expandedPicksId, setExpandedPicksId] = useState<string | null>(null);
 
   // Ref for the "next upcoming" match card — used for auto-scroll
   const nextUpcomingRef = useRef<HTMLDivElement | null>(null);
@@ -65,6 +68,11 @@ export function SchedulePage() {
     fetchTeams().then(setTeams).catch(() => {
       import('../data/teams').then((m) => setTeams(m.TEAMS));
     });
+  }, []);
+
+  // Load pickers (who picked each team)
+  useEffect(() => {
+    fetchAllPickers().then(setPickerMap).catch(() => {});
   }, []);
 
   // Load match results from Supabase
@@ -269,6 +277,47 @@ export function SchedulePage() {
                       <span className="schedule-match-time">🕐 {time}</span>
                       <span className="schedule-match-venue">📍 {match.venue}, {match.city}</span>
                     </div>
+
+                    {/* Who picked these teams */}
+                    {(() => {
+                      const homePickers = pickerMap[match.homeId] ?? [];
+                      const awayPickers = pickerMap[match.awayId] ?? [];
+                      if (homePickers.length + awayPickers.length === 0) return null;
+                      const isOpen = expandedPicksId === match.id;
+                      return (
+                        <div className="schedule-picks-section">
+                          <button
+                            className="schedule-picks-toggle"
+                            onClick={() => setExpandedPicksId(isOpen ? null : match.id)}
+                            aria-expanded={isOpen}
+                          >
+                            👥 {isOpen ? 'Hide picks' : 'Show picks'}
+                            <span className="schedule-picks-tally">
+                              {home.country} {homePickers.length} · {away.country} {awayPickers.length}
+                            </span>
+                          </button>
+                          {isOpen && (
+                            <div className="schedule-picks-expanded">
+                              {[
+                                { team: home, pickers: homePickers },
+                                { team: away, pickers: awayPickers },
+                              ].map(({ team, pickers }) => (
+                                <div key={team.id} className="schedule-picks-row">
+                                  <TeamFlag teamId={team.id} flagEmoji={team.flagEmoji} country={team.country} size="sm" />
+                                  <span className="schedule-picks-country">{team.country}:</span>
+                                  <span className="schedule-picks-names">
+                                    {pickers.length > 0
+                                      ? pickers.join(', ')
+                                      : <em style={{ color: 'var(--color-text-muted)' }}>nobody</em>
+                                    }
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}

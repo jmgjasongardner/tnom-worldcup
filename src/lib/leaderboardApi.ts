@@ -362,6 +362,26 @@ export async function fetchSimilarPortfolios(
   return results;
 }
 
+/**
+ * Fetch a map of teamId → list of participant display names who picked that team.
+ * Single query — efficient for rendering "who picked" for every team at once.
+ */
+export async function fetchAllPickers(): Promise<Record<string, string[]>> {
+  const { data } = await supabase
+    .from('entry_teams')
+    .select('team_id, entries(display_name)');
+
+  const map: Record<string, string[]> = {};
+  for (const row of (data ?? [])) {
+    const id = row.team_id as string;
+    const entry = row.entries as { display_name: string } | null;
+    if (!entry) continue;
+    if (!map[id]) map[id] = [];
+    map[id].push(entry.display_name as string);
+  }
+  return map;
+}
+
 /** Fetch the display names of everyone who picked a given team. */
 export async function fetchTeamPickers(teamId: string): Promise<TeamPicker[]> {
   const { data } = await supabase

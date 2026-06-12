@@ -94,6 +94,8 @@ const ESPN_NAME_TO_SLUG: Record<string, string> = {
   // Value
   "Bosnia and Herzegovina": "bosnia-and-herzegovina",
   "Bosnia & Herzegovina": "bosnia-and-herzegovina",
+  "Bosnia-Herzegovina": "bosnia-and-herzegovina",
+  "Bosnia Herzegovina": "bosnia-and-herzegovina",
   Ghana: "ghana",
   Iran: "iran",
   Australia: "australia",
@@ -146,6 +148,28 @@ interface TeamRow {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Resolve an ESPN team display name to our Supabase slug.
+ * Tries the exact name first, then a normalised version (strip diacritics,
+ * collapse hyphens/ampersands to spaces) so novel ESPN variants don't
+ * silently break scoring.
+ */
+function resolveSlug(espnName: string): string | undefined {
+  if (ESPN_NAME_TO_SLUG[espnName]) return ESPN_NAME_TO_SLUG[espnName];
+  // Normalise: NFD → strip combining marks → replace - and & with space → collapse spaces
+  const normalised = espnName
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")   // strip diacritics (é→e, ü→u, ç→c …)
+    .replace(/[-&]/g, " ")              // hyphens and & → space
+    .replace(/\s+/g, " ")              // collapse multiple spaces
+    .trim();
+  if (normalised !== espnName && ESPN_NAME_TO_SLUG[normalised]) {
+    console.log(`Slug resolved via normalisation: "${espnName}" → "${normalised}"`);
+    return ESPN_NAME_TO_SLUG[normalised];
+  }
+  return undefined;
+}
 
 /** Return the last N calendar dates as YYYYMMDD strings (UTC). */
 function recentDates(n: number): string[] {
@@ -342,11 +366,12 @@ export default async function updateScores(_req: Request) {
         const away = comp.competitors.find((c) => c.homeAway === "away");
         if (!home || !away) continue;
 
-        const homeSlug = ESPN_NAME_TO_SLUG[home.team.displayName];
-        const awaySlug = ESPN_NAME_TO_SLUG[away.team.displayName];
+        const homeSlug = resolveSlug(home.team.displayName);
+        const awaySlug = resolveSlug(away.team.displayName);
 
         if (!homeSlug || !awaySlug) {
-          errors.push(`Unknown team name: "${home.team.displayName}" or "${away.team.displayName}"`);
+          const unknown = [!homeSlug && home.team.displayName, !awaySlug && away.team.displayName].filter(Boolean);
+          errors.push(`Unknown team name(s): ${unknown.map((n) => `"${n}"`).join(", ")}`);
           continue;
         }
 

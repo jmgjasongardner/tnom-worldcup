@@ -375,6 +375,10 @@ export default async function updateScores(_req: Request) {
           await sb.rpc("add_group_match_points", { p_team_id: homeSlug, p_points: homePts });
           await sb.rpc("add_group_match_points", { p_team_id: awaySlug, p_points: awayPts });
 
+          // Recalculate max possible for both teams (loser's max drops, winner's rises)
+          await sb.rpc("update_team_max_possible", { p_team_id: homeSlug });
+          await sb.rpc("update_team_max_possible", { p_team_id: awaySlug });
+
           if (homePts > 0) {
             const label = homePts === 3 ? `Group win vs ${away.team.displayName} (+3)` : `Group draw vs ${away.team.displayName} (+1)`;
             await insertScoringEvent(sb, homeSlug, event.id, "group_match", "group", homePts, label);

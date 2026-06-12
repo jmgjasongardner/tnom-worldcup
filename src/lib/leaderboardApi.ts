@@ -17,6 +17,8 @@ export interface LeaderboardEntry {
   rank: number;
   /** Average pairwise Jaccard distance vs all other portfolios, 0–100. Higher = more unique. */
   diversityScore: number;
+  /** Per-team scoring status, keyed by team id. */
+  teamStatuses: Record<string, TeamStatusRow>;
 }
 
 export interface TeamLeaderboardRow {
@@ -80,7 +82,7 @@ function rowToTeam(row: Record<string, unknown>): Team {
   };
 }
 
-interface TeamStatusRow {
+export interface TeamStatusRow {
   teamId: string;
   currentPoints: number;
   maxPossiblePoints: number;
@@ -156,6 +158,7 @@ export async function fetchLeaderboardEntries(): Promise<LeaderboardEntry[]> {
       currentPoints,
       maxPossiblePoints,
       teamsAlive,
+      teamStatuses: statusMap,
       rank: 0, // assigned below
       diversityScore: totalEntries > 1
         ? Math.round(
@@ -228,6 +231,7 @@ export async function fetchParticipantEntry(emailUserParam: string): Promise<Lea
     currentPoints,
     maxPossiblePoints,
     teamsAlive,
+    teamStatuses: statusMap,
     rank: 0,
     diversityScore: 0,
   };

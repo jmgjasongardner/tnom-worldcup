@@ -889,6 +889,112 @@
   color: var(--color-text-secondary);
 }
 
+/* Schedule: match header row */
+.schedule-match-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* Schedule: score block (replaces .schedule-vs for completed matches) */
+.schedule-vs-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+}
+
+.schedule-score {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.schedule-score-num {
+  font-size: 1.35rem;
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+  min-width: 1.2ch;
+  text-align: center;
+}
+
+.schedule-score-num--winner { color: var(--color-navy-900); }
+.schedule-score-num--draw   { color: var(--color-text-secondary); }
+.schedule-score-num--loser  { color: var(--color-text-muted); font-weight: var(--font-weight-medium); }
+
+.schedule-score-sep {
+  font-size: 1rem;
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+  margin: 0 1px;
+}
+
+/* Schedule: team winner/loser states */
+.schedule-team--winner .schedule-team-name {
+  font-weight: var(--font-weight-bold);
+  color: var(--color-navy-900);
+}
+
+.schedule-team--loser .schedule-team-name {
+  color: var(--color-text-muted);
+}
+
+.schedule-team--loser .schedule-team-cost {
+  opacity: 0.55;
+}
+
+/* Schedule: status badges */
+.schedule-status-badge {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.02em;
+}
+
+.schedule-status-badge--next {
+  background: rgba(0, 166, 166, 0.12);
+  color: var(--color-teal-800);
+  border: 1px solid rgba(0, 166, 166, 0.3);
+}
+
+.schedule-status-badge--live {
+  background: rgba(244, 197, 66, 0.18);
+  color: #8a6d00;
+  border: 1px solid rgba(244, 197, 66, 0.4);
+  animation: pulse-badge 1.5s ease-in-out infinite;
+}
+
+.schedule-status-badge--final {
+  background: rgba(166, 174, 178, 0.18);
+  color: var(--color-text-muted);
+  border: 1px solid rgba(166, 174, 178, 0.35);
+}
+
+@keyframes pulse-badge {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.65; }
+}
+
+/* Schedule: card state variants */
+.schedule-match-card--complete {
+  border-color: var(--color-border);
+  background: var(--color-card);
+  opacity: 0.85;
+}
+
+.schedule-match-card--next {
+  border-color: var(--color-teal-500);
+  box-shadow: 0 0 0 2px rgba(0, 166, 166, 0.18), var(--shadow-card);
+}
+
+.schedule-match-card--live {
+  border-color: var(--color-gold-400);
+  box-shadow: 0 0 0 2px rgba(244, 197, 66, 0.25), var(--shadow-card);
+  opacity: 1 !important;
+}
+
 @media (max-width: 600px) {
   .schedule-team-name {
     font-size: var(--font-size-xs);
@@ -896,6 +1002,9 @@
   .schedule-match-meta {
     flex-direction: column;
     gap: var(--space-1);
+  }
+  .schedule-score-num {
+    font-size: 1.1rem;
   }
 }
 

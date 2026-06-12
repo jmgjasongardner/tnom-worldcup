@@ -155,19 +155,29 @@ export function ParticipantPortfolioPage() {
               </tr>
             </thead>
             <tbody>
-              {entry.teams.map((team) => (
-                <tr key={team.id} className="lb-row">
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <TeamFlag teamId={team.id} flagEmoji={team.flagEmoji} country={team.country} size="sm" />
-                      <Link to={`/teams/${team.id}`} className="lb-name-link">{team.country}</Link>
-                    </div>
-                  </td>
-                  <td className="lb-num lb-pts">0</td>
-                  <td className="lb-num">50</td>
-                  <td><span className="lb-status lb-status--alive">Group Stage</span></td>
-                </tr>
-              ))}
+              {entry.teams.map((team) => {
+                const ts = entry.teamStatuses[team.id];
+                const alive = ts?.isAlive !== false;
+                const stage = ts?.currentStage ?? 'group';
+                const stageLabel = stage.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+                return (
+                  <tr key={team.id} className="lb-row">
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <TeamFlag teamId={team.id} flagEmoji={team.flagEmoji} country={team.country} size="sm" />
+                        <Link to={`/teams/${team.id}`} className="lb-name-link">{team.country}</Link>
+                      </div>
+                    </td>
+                    <td className="lb-num lb-pts">{ts?.currentPoints ?? 0}</td>
+                    <td className="lb-num">{ts?.maxPossiblePoints ?? 50}</td>
+                    <td>
+                      <span className={`lb-status ${alive ? 'lb-status--alive' : 'lb-status--eliminated'}`}>
+                        {alive ? stageLabel : 'Eliminated'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
               <tr style={{ fontWeight: 700, borderTop: '2px solid var(--color-border)' }}>
                 <td>Total</td>
                 <td className="lb-num lb-pts">{entry.currentPoints}</td>

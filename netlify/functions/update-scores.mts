@@ -295,7 +295,7 @@ async function maybeAwardGroupBonuses(
 
 // ── Main handler ─────────────────────────────────────────────────────────────
 
-export default async function updateScores() {
+export default async function updateScores(_req: Request) {
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 import { HomePage } from './routes/HomePage';
 import { BuildPortfolioPage } from './routes/BuildPortfolioPage';
@@ -15,7 +15,8 @@ export function App() {
     <BrowserRouter>
       <AppShell>
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<Navigate to="/leaderboard" replace />} />
+          <Route path="/info" element={<HomePage />} />
           <Route path="/pick" element={<BuildPortfolioPage />} />
           <Route path="/teams" element={<TeamsPage />} />
           <Route path="/teams/:teamId" element={<TeamDetailPage />} />

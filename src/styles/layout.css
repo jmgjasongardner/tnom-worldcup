@@ -86,6 +86,62 @@
   color: var(--color-aqua-300);
 }
 
+/* Nav dropdown */
+.nav-dropdown {
+  position: relative;
+}
+
+.nav-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.nav-caret {
+  font-size: 0.65em;
+  opacity: 0.7;
+  margin-left: 0.1rem;
+}
+
+.nav-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 180px;
+  background: var(--color-navy-900);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.nav-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.nav-dropdown-item:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+.nav-dropdown-item.active {
+  background-color: rgba(0, 166, 166, 0.2);
+  color: var(--color-aqua-300);
+}
+
 /* Main content */
 .main-content {
   flex: 1;

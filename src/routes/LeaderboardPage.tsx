@@ -4,6 +4,7 @@ import { PageContainer } from '../components/layout/PageContainer';
 import { LoadingState } from '../components/ui/LoadingState';
 import { TeamFlag } from '../components/teams/TeamFlag';
 import { TierBadge } from '../components/ui/Badge';
+import { ScoringRulesTable } from '../components/scoring/ScoringRulesTable';
 import { fetchAppSettings } from '../lib/teamsApi';
 import { resolvePicksLocked } from '../lib/devUtils';
 import {
@@ -16,7 +17,7 @@ import { supabase } from '../lib/supabaseClient';
 import type { Team } from '../types/domain';
 
 type TeamSortKey = 'cost' | 'group' | 'picks' | 'points' | 'maxPossible' | 'status';
-type PortfolioSortKey = 'rank' | 'participant' | 'email' | 'cost' | 'points' | 'maxPossible' | 'alive' | 'diversity';
+type PortfolioSortKey = 'rank' | 'participant' | 'email' | 'cost' | 'points' | 'maxPossible' | 'alive' | 'groupMatches' | 'diversity';
 
 function stageLabel(stage: string, isAlive: boolean): string {
   if (!isAlive) return 'Eliminated';
@@ -64,10 +65,45 @@ function PreLockView({ entryCount, loading }: { entryCount: number | null; loadi
 }
 
 // ── Portfolios tab ──────────────────────────────────────────────────────────
+function ScoringModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      className="scoring-modal-backdrop"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Scoring Rules"
+    >
+      <div
+        className="scoring-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="scoring-modal-header">
+          <h2 style={{ margin: 0, fontSize: 'var(--font-size-lg)', color: 'var(--color-navy-900)' }}>
+            Scoring Rules
+          </h2>
+          <button
+            className="btn btn--ghost btn--sm"
+            onClick={onClose}
+            aria-label="Close scoring rules"
+            style={{ fontSize: '1.25rem', lineHeight: 1, padding: '0.25rem 0.5rem' }}
+          >
+            ×
+          </button>
+        </div>
+        <div className="scoring-modal-body">
+          <ScoringRulesTable />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PortfoliosTab({ entries }: { entries: LeaderboardEntry[] }) {
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<PortfolioSortKey>('points');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [showScoring, setShowScoring] = useState(false);
 
   function handleSort(key: PortfolioSortKey) {
     if (key === sortKey) {
@@ -97,14 +133,16 @@ function PortfoliosTab({ entries }: { entries: LeaderboardEntry[] }) {
         case 'participant': primary = d * a.displayName.localeCompare(b.displayName); break;
         case 'email':       primary = d * a.emailUser.localeCompare(b.emailUser); break;
         case 'cost':        primary = d * (a.totalCost - b.totalCost); break;
-        case 'points':      primary = d * (a.currentPoints - b.currentPoints); break;
-        case 'maxPossible': primary = d * (a.maxPossiblePoints - b.maxPossiblePoints); break;
-        case 'alive':       primary = d * (a.teamsAlive - b.teamsAlive); break;
-        case 'diversity':   primary = d * (a.diversityScore - b.diversityScore); break;
+        case 'points':       primary = d * (a.currentPoints - b.currentPoints); break;
+        case 'maxPossible':  primary = d * (a.maxPossiblePoints - b.maxPossiblePoints); break;
+        case 'alive':        primary = d * (a.teamsAlive - b.teamsAlive); break;
+        case 'groupMatches': primary = d * (a.groupMatchesPlayed - b.groupMatchesPlayed); break;
+        case 'diversity':    primary = d * (a.diversityScore - b.diversityScore); break;
       }
       if (primary !== 0) return primary;
-      // Secondary sort cascade: points desc → max possible desc → alive desc → participant asc
+      // Secondary sort cascade: points desc → group matches asc → max possible desc → alive desc → participant asc
       return (b.currentPoints - a.currentPoints)
+          || (a.groupMatchesPlayed - b.groupMatchesPlayed)
           || (b.maxPossiblePoints - a.maxPossiblePoints)
           || (b.teamsAlive - a.teamsAlive)
           || a.displayName.localeCompare(b.displayName);
@@ -163,15 +201,25 @@ function PortfoliosTab({ entries }: { entries: LeaderboardEntry[] }) {
         </div>
       )}
 
-      {/* Search */}
-      <div style={{ marginBottom: '1rem', maxWidth: 320 }}>
+      {/* Search + Scoring Rules button */}
+      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
         <input
           className="input"
+          style={{ maxWidth: 320 }}
           placeholder="Search by name or email…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        <button
+          className="btn btn--secondary btn--sm"
+          onClick={() => setShowScoring(true)}
+          style={{ whiteSpace: 'nowrap' }}
+        >
+          📋 Scoring Rules
+        </button>
       </div>
+
+      {showScoring && <ScoringModal onClose={() => setShowScoring(false)} />}
 
       {/* Table */}
       <div className="lb-table-wrap">
@@ -184,7 +232,8 @@ function PortfoliosTab({ entries }: { entries: LeaderboardEntry[] }) {
               <SortTh label="Cost"         col="cost"        numeric />
               <SortTh label="Points"       col="points"      numeric />
               <SortTh label="Max Possible" col="maxPossible" numeric />
-              <SortTh label="Alive"        col="alive"       numeric />
+              <SortTh label="Alive"         col="alive"        numeric />
+              <SortTh label="Group Matches" col="groupMatches" numeric title="Total group stage matches completed across your 6 teams (out of 18). Used as tiebreaker after points — fewer played = more games remaining = better rank." />
               <SortTh label="Diversity"    col="diversity"   numeric title="Popularity-weighted uniqueness (0–100). For each of your 6 teams, score = 1 − (% of all participants who picked that team). Average those 6 values × 100. A score of 100 means every pick was unique to you; a score of 0 means every pick was taken by all participants. High scores reward contrarian portfolios; low scores indicate chalk-heavy picks." />
               <th style={{ width: 48 }}></th>
             </tr>
@@ -212,6 +261,7 @@ function PortfoliosTab({ entries }: { entries: LeaderboardEntry[] }) {
                 <td className="lb-num lb-pts">{e.currentPoints}</td>
                 <td className="lb-num">{e.maxPossiblePoints}</td>
                 <td className="lb-num">{e.teamsAlive} / 6</td>
+                <td className="lb-num">{e.groupMatchesPlayed} / 18</td>
                 <td className="lb-num">
                   <span className={`lb-diversity lb-diversity--${e.diversityScore >= 75 ? 'high' : e.diversityScore >= 50 ? 'mid' : 'low'}`}>
                     {e.diversityScore}
@@ -237,6 +287,7 @@ function PortfoliosTab({ entries }: { entries: LeaderboardEntry[] }) {
 
 // ── Teams tab ───────────────────────────────────────────────────────────────
 function TeamsTab({ rows }: { rows: TeamLeaderboardRow[] }) {
+  const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<TeamSortKey>('picks');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
@@ -250,7 +301,16 @@ function TeamsTab({ rows }: { rows: TeamLeaderboardRow[] }) {
   }
 
   const sorted = useMemo(() => {
-    const copy = [...rows];
+    const q = search.toLowerCase();
+    const base = q
+      ? rows.filter(
+          (r) =>
+            r.team.country.toLowerCase().includes(q) ||
+            r.team.keyPlayer.toLowerCase().includes(q) ||
+            r.team.groupLetter.toLowerCase().includes(q),
+        )
+      : rows;
+    const copy = [...base];
     const dir = sortDir === 'asc' ? 1 : -1;
     copy.sort((a, b) => {
       switch (sortKey) {
@@ -264,7 +324,7 @@ function TeamsTab({ rows }: { rows: TeamLeaderboardRow[] }) {
       }
     });
     return copy;
-  }, [rows, sortKey, sortDir]);
+  }, [rows, search, sortKey, sortDir]);
 
   function SortTh({ label, col }: { label: string; col: TeamSortKey }) {
     const active = sortKey === col;
@@ -280,6 +340,15 @@ function TeamsTab({ rows }: { rows: TeamLeaderboardRow[] }) {
   }
 
   return (
+    <div>
+      <div style={{ marginBottom: '1rem', maxWidth: 320 }}>
+        <input
+          className="input"
+          placeholder="Search by country, player, or group…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
     <div className="lb-table-wrap">
       <table className="lb-table">
         <thead>
@@ -292,6 +361,7 @@ function TeamsTab({ rows }: { rows: TeamLeaderboardRow[] }) {
             <SortTh label="Points" col="points" />
             <SortTh label="Max Possible" col="maxPossible" />
             <SortTh label="Status" col="status" />
+            <th>Form</th>
             <th style={{ width: 48 }}></th>
           </tr>
         </thead>
@@ -316,12 +386,29 @@ function TeamsTab({ rows }: { rows: TeamLeaderboardRow[] }) {
                 </span>
               </td>
               <td>
+                <div className="team-form-badges">
+                  {row.form.length === 0
+                    ? <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)' }}>—</span>
+                    : row.form.map((r, i) => (
+                        <span key={i} className={`form-badge form-badge--${r.toLowerCase()}`}>{r}</span>
+                      ))
+                  }
+                </div>
+              </td>
+              <td>
                 <Link to={`/teams/${row.team.id}`} className="btn btn--ghost btn--sm">View</Link>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      {sorted.length === 0 && (
+        <div className="empty-state" style={{ margin: '2rem 0' }}>
+          <div className="empty-state-icon">🔍</div>
+          <div className="empty-state-title">No teams match "{search}"</div>
+        </div>
+      )}
+    </div>
     </div>
   );
 }

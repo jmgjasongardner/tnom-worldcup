@@ -94,6 +94,10 @@ $$;
 
 GRANT EXECUTE ON FUNCTION update_team_max_possible TO service_role;
 
+-- Fix the column default so newly inserted team_status rows start at 52, not 50.
+ALTER TABLE public.team_status
+  ALTER COLUMN max_possible_points SET DEFAULT 52;
+
 -- One-time recalculation for all existing teams.
 -- Safe to run multiple times — always recomputes from current DB state.
 DO $$

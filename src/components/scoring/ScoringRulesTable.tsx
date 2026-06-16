@@ -28,11 +28,11 @@ export function ScoringRulesTable() {
       </div>
 
       <div className="scoring-section">
-        <h3>Champion Example Run</h3>
+        <h3>Maximum Possible Score</h3>
         <table className="scoring-table">
           <tbody>
             <tr>
-              <td>2 group wins + 1 draw</td>
+              <td>3 group wins (max)</td>
               <td><strong>+{CHAMPION_EXAMPLE.groupPoints}</strong></td>
             </tr>
             <tr>

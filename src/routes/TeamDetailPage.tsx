@@ -7,7 +7,7 @@ import { TierBadge } from '../components/ui/Badge';
 import { TeamFlag } from '../components/teams/TeamFlag';
 import { fetchTeams, fetchAppSettings } from '../lib/teamsApi';
 import { resolvePicksLocked } from '../lib/devUtils';
-import { fetchTeamPickers, fetchTeamCoPicks, type CoPickRow, type TeamPicker } from '../lib/leaderboardApi';
+import { fetchTeamPickers, fetchTeamCoPicks, type CoPickRow, type TeamPicker, type TeamStatusRow } from '../lib/leaderboardApi';
 import { supabase } from '../lib/supabaseClient';
 import type { Team } from '../types/domain';
 
@@ -25,6 +25,7 @@ export function TeamDetailPage() {
   const [loading, setLoading] = useState(true);
   const [picksLocked, setPicksLocked] = useState(false);
   const [team, setTeam] = useState<Team | null>(null);
+  const [teamStatus, setTeamStatus] = useState<TeamStatusRow | null>(null);
   const [pickers, setPickers] = useState<TeamPicker[]>([]);
   const [coPicks, setCoPicks] = useState<CoPickRow[]>([]);
   const [totalEntries, setTotalEntries] = useState(0);
@@ -38,6 +39,25 @@ export function TeamDetailPage() {
         setTeam(found);
         const locked = resolvePicksLocked(settings.picksLocked);
         setPicksLocked(locked);
+
+        // Always fetch team status (points visible regardless of lock)
+        supabase
+          .from('team_status')
+          .select('*')
+          .eq('team_id', teamId)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) {
+              setTeamStatus({
+                teamId: data.team_id as string,
+                currentPoints: (data.total_points as number) ?? 0,
+                maxPossiblePoints: (data.max_possible_points as number) ?? 52,
+                isAlive: (data.is_alive as boolean) ?? true,
+                currentStage: (data.current_stage as string) ?? 'group',
+                groupMatchesPlayed: 0,
+              });
+            }
+          });
 
         if (locked) {
           return Promise.all([
@@ -86,6 +106,30 @@ export function TeamDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Tournament scoring */}
+      {teamStatus && (
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+          <div className="stat-card" style={{ flex: '1 1 100px' }}>
+            <div className="stat-card-label">Points</div>
+            <div className="stat-card-value" style={{ color: 'var(--color-teal-500)' }}>{teamStatus.currentPoints}</div>
+          </div>
+          <div className="stat-card" style={{ flex: '1 1 100px' }}>
+            <div className="stat-card-label">Max Possible</div>
+            <div className="stat-card-value">{teamStatus.maxPossiblePoints}</div>
+          </div>
+          <div className="stat-card" style={{ flex: '1 1 100px' }}>
+            <div className="stat-card-label">Status</div>
+            <div className="stat-card-value" style={{ fontSize: 'var(--font-size-base)', paddingTop: '0.25rem' }}>
+              <span className={`lb-status ${teamStatus.isAlive ? 'lb-status--alive' : 'lb-status--eliminated'}`}>
+                {teamStatus.isAlive
+                  ? (teamStatus.currentStage.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()))
+                  : 'Eliminated'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Key player */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>

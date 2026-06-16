@@ -14,7 +14,7 @@ export const SCORING = {
   finalWin: 14,
 } as const;
 
-export const MAX_POSSIBLE_POINTS = 50; // Example champion run
+export const MAX_POSSIBLE_POINTS = 52; // True max: 3 group wins (9) + group 1st bonus (4) + all knockouts (39)
 
 export const SCORING_TABLE = [
   { event: 'Group-stage win', points: SCORING.groupWin },
@@ -32,10 +32,10 @@ export const SCORING_TABLE = [
 ];
 
 export const CHAMPION_EXAMPLE = {
-  groupWins: 2,
-  groupDraw: 1,
-  groupPoints: 7,
+  groupWins: 3,
+  groupDraw: 0,
+  groupPoints: 9,
   groupBonus: 4,
   knockoutPoints: 3 + 5 + 7 + 10 + 14,
-  total: 50,
+  total: 52,
 };

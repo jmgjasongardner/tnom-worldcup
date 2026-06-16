@@ -14,6 +14,8 @@ export interface LeaderboardEntry {
   currentPoints: number;
   maxPossiblePoints: number;
   teamsAlive: number;
+  /** Total group stage matches completed across all 6 selected teams. Max = 18 (6 × 3). */
+  groupMatchesPlayed: number;
   rank: number;
   /** Average pairwise Jaccard distance vs all other portfolios, 0–100. Higher = more unique. */
   diversityScore: number;
@@ -29,6 +31,7 @@ export interface TeamLeaderboardRow {
   maxPossiblePoints: number;
   isAlive: boolean;
   currentStage: string;
+  form: ('W' | 'D' | 'L')[];
 }
 
 export interface TeamPicker {
@@ -88,19 +91,39 @@ export interface TeamStatusRow {
   maxPossiblePoints: number;
   isAlive: boolean;
   currentStage: string;
+  groupMatchesPlayed: number; // 0–3
 }
 
 async function fetchAllTeamStatus(): Promise<Record<string, TeamStatusRow>> {
-  const { data } = await supabase.from('team_status').select('*');
+  const [{ data }, { data: matchesData }] = await Promise.all([
+    supabase.from('team_status').select('*'),
+    supabase
+      .from('matches')
+      .select('home_team_id, away_team_id')
+      .eq('stage', 'group')
+      .eq('status', 'complete'),
+  ]);
+
+  // Count completed group matches per team
+  const played: Record<string, number> = {};
+  for (const m of matchesData ?? []) {
+    const h = m.home_team_id as string;
+    const a = m.away_team_id as string;
+    played[h] = (played[h] ?? 0) + 1;
+    played[a] = (played[a] ?? 0) + 1;
+  }
+
   const map: Record<string, TeamStatusRow> = {};
   if (data) {
     for (const row of data) {
-      map[row.team_id as string] = {
-        teamId: row.team_id as string,
+      const teamId = row.team_id as string;
+      map[teamId] = {
+        teamId,
         currentPoints: (row.total_points as number) ?? 0,
-        maxPossiblePoints: (row.max_possible_points as number) ?? 50,
+        maxPossiblePoints: (row.max_possible_points as number) ?? 52,
         isAlive: (row.is_alive as boolean) ?? true,
         currentStage: (row.current_stage as string) ?? 'group',
+        groupMatchesPlayed: played[teamId] ?? 0,
       };
     }
   }
@@ -139,11 +162,13 @@ export async function fetchLeaderboardEntries(): Promise<LeaderboardEntry[]> {
     let currentPoints = 0;
     let maxPossiblePoints = 0;
     let teamsAlive = 0;
+    let groupMatchesPlayed = 0;
 
     for (const t of teams) {
       const status = statusMap[t.id];
       currentPoints += status?.currentPoints ?? 0;
-      maxPossiblePoints += status?.maxPossiblePoints ?? 50;
+      maxPossiblePoints += status?.maxPossiblePoints ?? 52;
+      groupMatchesPlayed += status?.groupMatchesPlayed ?? 0;
       if (status?.isAlive !== false) teamsAlive++;
     }
 
@@ -158,6 +183,7 @@ export async function fetchLeaderboardEntries(): Promise<LeaderboardEntry[]> {
       currentPoints,
       maxPossiblePoints,
       teamsAlive,
+      groupMatchesPlayed,
       teamStatuses: statusMap,
       rank: 0, // assigned below
       diversityScore: totalEntries > 1
@@ -170,9 +196,10 @@ export async function fetchLeaderboardEntries(): Promise<LeaderboardEntry[]> {
     };
   });
 
-  // Sort by currentPoints desc, then maxPossiblePoints desc, then name asc
+  // Sort: points desc → group matches played asc (fewer played = more games remaining = better) → max possible desc → name asc
   entries.sort((a, b) =>
     b.currentPoints - a.currentPoints ||
+    a.groupMatchesPlayed - b.groupMatchesPlayed ||
     b.maxPossiblePoints - a.maxPossiblePoints ||
     a.displayName.localeCompare(b.displayName)
   );
@@ -213,10 +240,12 @@ export async function fetchParticipantEntry(emailUserParam: string): Promise<Lea
   let currentPoints = 0;
   let maxPossiblePoints = 0;
   let teamsAlive = 0;
+  let groupMatchesPlayed = 0;
   for (const t of teams) {
     const status = statusMap[t.id];
     currentPoints += status?.currentPoints ?? 0;
-    maxPossiblePoints += status?.maxPossiblePoints ?? 50;
+    maxPossiblePoints += status?.maxPossiblePoints ?? 52;
+    groupMatchesPlayed += status?.groupMatchesPlayed ?? 0;
     if (status?.isAlive !== false) teamsAlive++;
   }
 
@@ -231,19 +260,40 @@ export async function fetchParticipantEntry(emailUserParam: string): Promise<Lea
     currentPoints,
     maxPossiblePoints,
     teamsAlive,
+    groupMatchesPlayed,
     teamStatuses: statusMap,
     rank: 0,
     diversityScore: 0,
   };
 }
 
-/** Fetch all teams enriched with pick counts and tournament status. */
+/** Fetch all teams enriched with pick counts, tournament status, and group-stage form. */
 export async function fetchTeamLeaderboard(): Promise<TeamLeaderboardRow[]> {
-  const [teamMap, statusMap, { data: pickData }] = await Promise.all([
+  const [teamMap, statusMap, { data: pickData }, { data: matchData }] = await Promise.all([
     buildTeamMap(),
     fetchAllTeamStatus(),
     supabase.from('entry_teams').select('team_id'),
+    supabase
+      .from('matches')
+      .select('home_team_id, away_team_id, home_score, away_score, played_at')
+      .eq('stage', 'group')
+      .eq('status', 'complete')
+      .order('played_at', { ascending: true }),
   ]);
+
+  // Build form sequence per team (chronological)
+  const formMap: Record<string, ('W' | 'D' | 'L')[]> = {};
+  for (const m of matchData ?? []) {
+    const h  = m.home_team_id as string;
+    const a  = m.away_team_id as string;
+    const hs = m.home_score as number;
+    const as_ = m.away_score as number;
+    if (!formMap[h]) formMap[h] = [];
+    if (!formMap[a]) formMap[a] = [];
+    if (hs > as_)       { formMap[h].push('W'); formMap[a].push('L'); }
+    else if (hs < as_)  { formMap[h].push('L'); formMap[a].push('W'); }
+    else                { formMap[h].push('D'); formMap[a].push('D'); }
+  }
 
   // Count picks per team
   const pickCounts: Record<string, number> = {};
@@ -254,21 +304,22 @@ export async function fetchTeamLeaderboard(): Promise<TeamLeaderboardRow[]> {
 
   const totalEntries = (pickData ?? []).length > 0
     ? Math.max(...Object.values(pickCounts)) > 0
-      ? Object.values(pickCounts).reduce((a, b) => a + b, 0) / 6 // 6 picks per entry
+      ? Object.values(pickCounts).reduce((a, b) => a + b, 0) / 6
       : 0
     : 0;
 
   return Object.values(teamMap).map((team) => {
     const status = statusMap[team.id];
-    const count = pickCounts[team.id] ?? 0;
+    const count  = pickCounts[team.id] ?? 0;
     return {
       team,
       pickCount: count,
       pickPct: totalEntries > 0 ? Math.round((count / totalEntries) * 100) : 0,
       currentPoints: status?.currentPoints ?? 0,
-      maxPossiblePoints: status?.maxPossiblePoints ?? 50,
+      maxPossiblePoints: status?.maxPossiblePoints ?? 52,
       isAlive: status?.isAlive ?? true,
       currentStage: status?.currentStage ?? 'group',
+      form: formMap[team.id] ?? [],
     };
   });
 }

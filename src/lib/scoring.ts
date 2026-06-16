@@ -13,7 +13,7 @@ export function calcEntryPoints(teams: Team[], statuses: Record<string, TeamStat
 export function calcEntryMaxPossible(teams: Team[], statuses: Record<string, TeamStatus>): number {
   return teams.reduce((sum, team) => {
     const status = statuses[team.id];
-    return sum + (status?.maxPossiblePoints ?? 50);
+    return sum + (status?.maxPossiblePoints ?? 52);
   }, 0);
 }
 

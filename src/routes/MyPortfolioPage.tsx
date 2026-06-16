@@ -212,7 +212,7 @@ export function MyPortfolioPage() {
                         </div>
                       </td>
                       <td className="lb-num lb-pts">{ts?.currentPoints ?? 0}</td>
-                      <td className="lb-num">{ts?.maxPossiblePoints ?? 50}</td>
+                      <td className="lb-num">{ts?.maxPossiblePoints ?? 52}</td>
                       <td>
                         <span className={`lb-status ${alive ? 'lb-status--alive' : 'lb-status--eliminated'}`}>
                           {alive ? stageLabel : 'Eliminated'}

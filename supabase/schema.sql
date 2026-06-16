@@ -127,7 +127,7 @@ create table public.team_status (
   group_finish_bonus    integer not null default 0,
   knockout_points       integer not null default 0,
   total_points          integer generated always as (group_match_points + group_finish_bonus + knockout_points) stored,
-  max_possible_points   integer not null default 50,
+  max_possible_points   integer not null default 52,
   is_alive              boolean not null default true,
   current_stage         text not null default 'group',
   group_finish          integer,

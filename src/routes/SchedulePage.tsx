@@ -124,6 +124,10 @@ export function SchedulePage() {
       if (!grouped[dateKey]) grouped[dateKey] = [];
       grouped[dateKey].push(match);
     }
+    // Sort within each day by kickoff time (data file is in group-letter order, not chronological)
+    for (const key of Object.keys(grouped)) {
+      grouped[key].sort((a, b) => etToUtcMs(a.dateTimeET) - etToUtcMs(b.dateTimeET));
+    }
     return grouped;
   }, [displayedMatches]);
 

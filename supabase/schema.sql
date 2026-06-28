@@ -156,6 +156,12 @@ create table public.scoring_events (
 -- HELPER FUNCTIONS
 -- ============================================================
 
+-- NOTE: add_group_match_points / add_group_finish_bonus / add_knockout_win /
+-- eliminate_team / update_team_max_possible / reconcile_third_place_advancement
+-- live in supabase/patch_004.sql, patch_007.sql, patch_008.sql, and
+-- patch_009.sql. Apply those patches in order after this file when standing
+-- up a fresh database.
+
 create or replace function public.is_admin()
 returns boolean as $$
   select coalesce(

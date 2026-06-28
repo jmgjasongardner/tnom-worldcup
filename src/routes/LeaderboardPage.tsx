@@ -17,7 +17,7 @@ import { supabase } from '../lib/supabaseClient';
 import type { Team } from '../types/domain';
 
 type TeamSortKey = 'cost' | 'group' | 'picks' | 'points' | 'maxPossible' | 'status';
-type PortfolioSortKey = 'rank' | 'participant' | 'email' | 'cost' | 'points' | 'maxPossible' | 'alive' | 'groupMatches' | 'diversity';
+type PortfolioSortKey = 'rank' | 'participant' | 'email' | 'cost' | 'points' | 'bestScore' | 'alive' | 'diversity';
 
 function stageLabel(stage: string, isAlive: boolean): string {
   if (!isAlive) return 'Eliminated';
@@ -134,17 +134,15 @@ function PortfoliosTab({ entries }: { entries: LeaderboardEntry[] }) {
         case 'email':       primary = d * a.emailUser.localeCompare(b.emailUser); break;
         case 'cost':        primary = d * (a.totalCost - b.totalCost); break;
         case 'points':       primary = d * (a.currentPoints - b.currentPoints); break;
-        case 'maxPossible':  primary = d * (a.maxPossiblePoints - b.maxPossiblePoints); break;
+        case 'bestScore':    primary = d * (a.bestScore - b.bestScore); break;
         case 'alive':        primary = d * (a.teamsAlive - b.teamsAlive); break;
-        case 'groupMatches': primary = d * (a.groupMatchesPlayed - b.groupMatchesPlayed); break;
         case 'diversity':    primary = d * (a.diversityScore - b.diversityScore); break;
       }
       if (primary !== 0) return primary;
-      // Secondary sort cascade: points desc → group matches asc → max possible desc → alive desc → participant asc
+      // Secondary sort cascade: points desc → teams alive desc → best score desc → participant asc
       return (b.currentPoints - a.currentPoints)
-          || (a.groupMatchesPlayed - b.groupMatchesPlayed)
-          || (b.maxPossiblePoints - a.maxPossiblePoints)
           || (b.teamsAlive - a.teamsAlive)
+          || (b.bestScore - a.bestScore)
           || a.displayName.localeCompare(b.displayName);
     });
   }, [entries, search, sortKey, sortDir]);
@@ -155,8 +153,8 @@ function PortfoliosTab({ entries }: { entries: LeaderboardEntry[] }) {
   const maxAlive      = Math.max(...entries.map((e) => e.teamsAlive));
   const mostAliveList = entries.filter((e) => e.teamsAlive === maxAlive);
 
-  const maxPossible   = Math.max(...entries.map((e) => e.maxPossiblePoints));
-  const highestMaxList = entries.filter((e) => e.maxPossiblePoints === maxPossible);
+  const highestCeiling   = Math.max(...entries.map((e) => e.bestScore));
+  const highestMaxList = entries.filter((e) => e.bestScore === highestCeiling);
 
   function cardName(list: LeaderboardEntry[]) {
     return list.length > 1 ? `${list.length} tied` : list[0].displayName;
@@ -196,7 +194,7 @@ function PortfoliosTab({ entries }: { entries: LeaderboardEntry[] }) {
           <div className="stat-card">
             <div className="stat-card-label">📈 Highest Ceiling</div>
             <div className="stat-card-value" style={{ fontSize: 'var(--font-size-lg)' }}>{cardName(highestMaxList)}</div>
-            <div className="stat-card-sub">{maxPossible} max pts</div>
+            <div className="stat-card-sub">{highestCeiling} pts (best score)</div>
           </div>
         </div>
       )}
@@ -231,9 +229,8 @@ function PortfoliosTab({ entries }: { entries: LeaderboardEntry[] }) {
               <SortTh label="Email"        col="email" />
               <SortTh label="Cost"         col="cost"        numeric />
               <SortTh label="Points"       col="points"      numeric />
-              <SortTh label="Max Possible" col="maxPossible" numeric />
+              <SortTh label="Best Score"   col="bestScore"   numeric title="The most points you could still realistically win. Accounts for bracket collisions — if two of your teams are on a path to meet, only one can advance, so that round's points are awarded once, not twice." />
               <SortTh label="Alive"         col="alive"        numeric />
-              <SortTh label="Group Matches" col="groupMatches" numeric title="Total group stage matches completed across your 6 teams (out of 18). Used as tiebreaker after points — fewer played = more games remaining = better rank." />
               <SortTh label="Diversity"    col="diversity"   numeric title="Popularity-weighted uniqueness (0–100). For each of your 6 teams, score = 1 − (% of all participants who picked that team). Average those 6 values × 100. A score of 100 means every pick was unique to you; a score of 0 means every pick was taken by all participants. High scores reward contrarian portfolios; low scores indicate chalk-heavy picks." />
               <th style={{ width: 48 }}></th>
             </tr>
@@ -259,9 +256,8 @@ function PortfoliosTab({ entries }: { entries: LeaderboardEntry[] }) {
                 <td className="lb-email">{e.emailUser}</td>
                 <td className="lb-num">${e.totalCost}</td>
                 <td className="lb-num lb-pts">{e.currentPoints}</td>
-                <td className="lb-num">{e.maxPossiblePoints}</td>
+                <td className="lb-num lb-pts">{e.bestScore}</td>
                 <td className="lb-num">{e.teamsAlive} / 6</td>
-                <td className="lb-num">{e.groupMatchesPlayed} / 18</td>
                 <td className="lb-num">
                   <span className={`lb-diversity lb-diversity--${e.diversityScore >= 75 ? 'high' : e.diversityScore >= 50 ? 'mid' : 'low'}`}>
                     {e.diversityScore}
@@ -547,7 +543,7 @@ function TeamCombosTab({ entries, teamRows }: { entries: LeaderboardEntry[]; tea
               <th style={{ width: 48 }}>Rank</th>
               <th>Participant</th>
               <th className="lb-num">Points</th>
-              <th className="lb-num">Max Possible</th>
+              <th className="lb-num">Best Score</th>
               <th className="lb-num">Alive</th>
               <th style={{ width: 48 }}></th>
             </tr>
@@ -571,7 +567,7 @@ function TeamCombosTab({ entries, teamRows }: { entries: LeaderboardEntry[]; tea
                   </div>
                 </td>
                 <td className="lb-num lb-pts">{e.currentPoints}</td>
-                <td className="lb-num">{e.maxPossiblePoints}</td>
+                <td className="lb-num">{e.bestScore}</td>
                 <td className="lb-num">{e.teamsAlive} / 6</td>
                 <td>
                   <Link to={`/participants/${e.emailUser}`} className="btn btn--ghost btn--sm">View</Link>

@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient';
 import { withExtras } from './teamsApi';
 import { TEAMS as STATIC_TEAMS } from '../data/teams';
 import type { Team } from '../types/domain';
+import { fetchResolvedBracket, computeBestUpside, type ResolvedBracketMatch } from './bracketEngine';
 
 export interface LeaderboardEntry {
   id: string;
@@ -12,7 +13,10 @@ export interface LeaderboardEntry {
   teamIds: string[];
   teams: Team[];
   currentPoints: number;
-  maxPossiblePoints: number;
+  /** Realistic ceiling for this portfolio's remaining points. Resolves bracket
+   *  collisions — if two owned teams are on a path to meet, only one can actually
+   *  win that round, so that round's points are only counted once, not twice. */
+  bestScore: number;
   teamsAlive: number;
   /** Total group stage matches completed across all 6 selected teams. Max = 18 (6 × 3). */
   groupMatchesPlayed: number;
@@ -130,19 +134,33 @@ async function fetchAllTeamStatus(): Promise<Record<string, TeamStatusRow>> {
   return map;
 }
 
+/** currentPoints + the bracket-collision-aware upside for this entry's still-alive teams. */
+function computeEntryBestScore(
+  teams: Team[],
+  statusMap: Record<string, TeamStatusRow>,
+  currentPoints: number,
+  resolvedBracket: ResolvedBracketMatch[],
+): number {
+  const ownedAliveTeamIds = new Set(
+    teams.filter((t) => statusMap[t.id]?.isAlive !== false).map((t) => t.id),
+  );
+  return currentPoints + computeBestUpside(ownedAliveTeamIds, resolvedBracket);
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
 /** Fetch all entries with their teams, enriched with scoring data. */
 export async function fetchLeaderboardEntries(): Promise<LeaderboardEntry[]> {
-  const [{ data: entriesData }, teamMap, statusMap, { data: allPicksData }] = await Promise.all([
+  const [{ data: entriesData }, teamMap, statusMap, { data: allPicksData }, resolvedBracket] = await Promise.all([
     supabase
       .from('entries')
       .select('id, display_name, email, total_cost, entry_teams(team_id)'),
     buildTeamMap(),
     fetchAllTeamStatus(),
     supabase.from('entry_teams').select('team_id'),
+    fetchResolvedBracket(),
   ]);
 
   if (!entriesData) return [];
@@ -160,14 +178,12 @@ export async function fetchLeaderboardEntries(): Promise<LeaderboardEntry[]> {
     const teams = sortTeams(teamIds.map((id) => teamMap[id]).filter(Boolean) as Team[]);
 
     let currentPoints = 0;
-    let maxPossiblePoints = 0;
     let teamsAlive = 0;
     let groupMatchesPlayed = 0;
 
     for (const t of teams) {
       const status = statusMap[t.id];
       currentPoints += status?.currentPoints ?? 0;
-      maxPossiblePoints += status?.maxPossiblePoints ?? 52;
       groupMatchesPlayed += status?.groupMatchesPlayed ?? 0;
       if (status?.isAlive !== false) teamsAlive++;
     }
@@ -181,7 +197,7 @@ export async function fetchLeaderboardEntries(): Promise<LeaderboardEntry[]> {
       teamIds,
       teams,
       currentPoints,
-      maxPossiblePoints,
+      bestScore: computeEntryBestScore(teams, statusMap, currentPoints, resolvedBracket),
       teamsAlive,
       groupMatchesPlayed,
       teamStatuses: statusMap,
@@ -196,18 +212,23 @@ export async function fetchLeaderboardEntries(): Promise<LeaderboardEntry[]> {
     };
   });
 
-  // Sort: points desc → group matches played asc (fewer played = more games remaining = better) → max possible desc → name asc
+  // Sort: points desc → teams alive desc (more alive = more remaining upside) → best score desc → name asc
   entries.sort((a, b) =>
     b.currentPoints - a.currentPoints ||
-    a.groupMatchesPlayed - b.groupMatchesPlayed ||
-    b.maxPossiblePoints - a.maxPossiblePoints ||
+    b.teamsAlive - a.teamsAlive ||
+    b.bestScore - a.bestScore ||
     a.displayName.localeCompare(b.displayName)
   );
 
-  // Assign ranks (handle ties)
+  // Assign ranks: tied on points alone still separates by best score. Only an
+  // exact tie on both points and best score shares a rank.
   let rank = 1;
   for (let i = 0; i < entries.length; i++) {
-    if (i > 0 && entries[i].currentPoints < entries[i - 1].currentPoints) {
+    if (
+      i > 0 &&
+      (entries[i].currentPoints !== entries[i - 1].currentPoints ||
+        entries[i].bestScore !== entries[i - 1].bestScore)
+    ) {
       rank = i + 1;
     }
     entries[i].rank = rank;
@@ -222,7 +243,7 @@ export async function fetchParticipantEntry(emailUserParam: string): Promise<Lea
     ? emailUserParam
     : `${emailUserParam}@technomics.net`;
 
-  const [{ data: row }, teamMap, statusMap] = await Promise.all([
+  const [{ data: row }, teamMap, statusMap, resolvedBracket] = await Promise.all([
     supabase
       .from('entries')
       .select('id, display_name, email, total_cost, entry_teams(team_id)')
@@ -230,6 +251,7 @@ export async function fetchParticipantEntry(emailUserParam: string): Promise<Lea
       .maybeSingle(),
     buildTeamMap(),
     fetchAllTeamStatus(),
+    fetchResolvedBracket(),
   ]);
 
   if (!row) return null;
@@ -238,13 +260,11 @@ export async function fetchParticipantEntry(emailUserParam: string): Promise<Lea
   const teams = sortTeams(teamIds.map((id) => teamMap[id]).filter(Boolean) as Team[]);
 
   let currentPoints = 0;
-  let maxPossiblePoints = 0;
   let teamsAlive = 0;
   let groupMatchesPlayed = 0;
   for (const t of teams) {
     const status = statusMap[t.id];
     currentPoints += status?.currentPoints ?? 0;
-    maxPossiblePoints += status?.maxPossiblePoints ?? 52;
     groupMatchesPlayed += status?.groupMatchesPlayed ?? 0;
     if (status?.isAlive !== false) teamsAlive++;
   }
@@ -258,7 +278,7 @@ export async function fetchParticipantEntry(emailUserParam: string): Promise<Lea
     teamIds,
     teams,
     currentPoints,
-    maxPossiblePoints,
+    bestScore: computeEntryBestScore(teams, statusMap, currentPoints, resolvedBracket),
     teamsAlive,
     groupMatchesPlayed,
     teamStatuses: statusMap,

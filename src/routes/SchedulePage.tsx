@@ -2,11 +2,16 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { PageContainer } from '../components/layout/PageContainer';
 import { TeamFlag } from '../components/teams/TeamFlag';
 import { SCHEDULE, GROUPS, type GroupLetter } from '../data/schedule';
+import { KNOCKOUT_BRACKET } from '../data/knockoutBracket';
+import { fetchResolvedBracket, type ResolvedBracketMatch } from '../lib/bracketEngine';
+import { KnockoutBracket } from '../components/schedule/KnockoutBracket';
 import { fetchTeams } from '../lib/teamsApi';
 import { TEAMS as STATIC_TEAMS } from '../data/teams';
 import { supabase } from '../lib/supabaseClient';
 import { fetchAllPickers } from '../lib/leaderboardApi';
 import type { Team } from '../types/domain';
+
+type StageTab = 'group' | 'knockout';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -59,6 +64,8 @@ export function SchedulePage() {
   const [resultsLoaded, setResultsLoaded] = useState(false);
   const [pickerMap, setPickerMap]   = useState<Record<string, string[]>>({});
   const [expandedPicksId, setExpandedPicksId] = useState<string | null>(null);
+  const [stageTab, setStageTab]     = useState<StageTab>('knockout');
+  const [resolvedBracket, setResolvedBracket] = useState<ResolvedBracketMatch[]>([]);
 
   // Ref for the "next upcoming" match card — used for auto-scroll
   const nextUpcomingRef = useRef<HTMLDivElement | null>(null);
@@ -97,14 +104,19 @@ export function SchedulePage() {
       });
   }, []);
 
+  // Load the knockout bracket resolved against live results
+  useEffect(() => {
+    fetchResolvedBracket().then(setResolvedBracket).catch(() => {});
+  }, []);
+
   // Auto-scroll to next upcoming match once results are loaded
   useEffect(() => {
-    if (!resultsLoaded) return;
+    if (!resultsLoaded || stageTab !== 'group') return;
     const timer = setTimeout(() => {
       nextUpcomingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 150);
     return () => clearTimeout(timer);
-  }, [resultsLoaded]);
+  }, [resultsLoaded, stageTab]);
 
   const teamMap = useMemo(() => {
     const map: Record<string, Team> = {};
@@ -166,9 +178,35 @@ export function SchedulePage() {
     <PageContainer>
       <div className="page-header">
         <h1 className="page-title">Schedule</h1>
-        <p className="page-subtitle">All 72 group stage matches · times in US Eastern Time</p>
+        <p className="page-subtitle">
+          {stageTab === 'group'
+            ? 'All 72 group stage matches · times in US Eastern Time'
+            : 'Round of 32 through the Final · single elimination, win or go home'}
+        </p>
       </div>
 
+      {/* Stage toggle */}
+      <div className="lb-tabs" role="tablist" aria-label="Group stage or knockout stage">
+        <button
+          role="tab"
+          aria-selected={stageTab === 'group'}
+          className={`lb-tab ${stageTab === 'group' ? 'active' : ''}`}
+          onClick={() => setStageTab('group')}
+        >
+          Group Stage
+        </button>
+        <button
+          role="tab"
+          aria-selected={stageTab === 'knockout'}
+          className={`lb-tab ${stageTab === 'knockout' ? 'active' : ''}`}
+          onClick={() => setStageTab('knockout')}
+        >
+          Knockout Stage
+        </button>
+      </div>
+
+      {stageTab === 'group' && (
+      <>
       {/* Group filter tabs */}
       <div className="schedule-group-tabs" role="tablist" aria-label="Filter by group">
         <button
@@ -329,6 +367,111 @@ export function SchedulePage() {
           </div>
         ))}
       </div>
+      </>
+      )}
+
+      {stageTab === 'knockout' && (
+        <KnockoutStageView teamMap={teamMap} resolvedBracket={resolvedBracket} />
+      )}
     </PageContainer>
+  );
+}
+
+// ── Knockout stage view ──────────────────────────────────────────────────────
+
+interface KnockoutStageViewProps {
+  teamMap: Record<string, Team>;
+  resolvedBracket: ResolvedBracketMatch[];
+}
+
+function KnockoutStageView({ teamMap, resolvedBracket }: KnockoutStageViewProps) {
+  const resolvedByNumber = useMemo(() => {
+    const map = new Map<number, ResolvedBracketMatch>();
+    for (const m of resolvedBracket) map.set(m.matchNumber, m);
+    return map;
+  }, [resolvedBracket]);
+
+  const r32Matches = useMemo(
+    () =>
+      KNOCKOUT_BRACKET
+        .filter((m) => m.stage === 'round_of_32')
+        .slice()
+        .sort((a, b) => etToUtcMs(a.dateTimeET!) - etToUtcMs(b.dateTimeET!)),
+    [],
+  );
+
+  return (
+    <div>
+      <h2 className="schedule-date-heading" style={{ marginTop: 0 }}>Round of 32</h2>
+      <div className="schedule-match-list" style={{ marginBottom: 'var(--space-8)' }}>
+        {r32Matches.map((match) => {
+          const resolved = resolvedByNumber.get(match.matchNumber);
+          const home = match.home.teamId ? teamMap[match.home.teamId] : null;
+          const away = match.away.teamId ? teamMap[match.away.teamId] : null;
+          if (!home || !away) return null;
+
+          const isComplete = resolved?.isComplete ?? false;
+          const homeScore = resolved?.homeScore ?? null;
+          const awayScore = resolved?.awayScore ?? null;
+          const homeWon = isComplete && (homeScore ?? 0) > (awayScore ?? 0);
+          const awayWon = isComplete && (awayScore ?? 0) > (homeScore ?? 0);
+          const { date, time } = formatDateTime(match.dateTimeET!);
+
+          return (
+            <div
+              key={match.matchNumber}
+              className={`schedule-match-card ${isComplete ? 'schedule-match-card--complete' : ''}`}
+            >
+              <div className="schedule-match-header">
+                <span className="schedule-match-group">Match {match.matchNumber} · Round of 32</span>
+                {isComplete && <span className="schedule-status-badge schedule-status-badge--final">Final</span>}
+              </div>
+
+              <div className="schedule-match-teams">
+                <div className={`schedule-team schedule-team--home ${homeWon ? 'schedule-team--winner' : ''} ${awayWon ? 'schedule-team--loser' : ''}`}>
+                  <TeamFlag teamId={home.id} flagEmoji={home.flagEmoji} country={home.country} size="md" />
+                  <div className="schedule-team-info">
+                    <span className="schedule-team-name">{home.country}</span>
+                    <span className="schedule-team-cost">${home.cost}</span>
+                  </div>
+                </div>
+
+                <div className="schedule-vs-block">
+                  {isComplete ? (
+                    <div className="schedule-score">
+                      <span className={`schedule-score-num ${homeWon ? 'schedule-score-num--winner' : 'schedule-score-num--loser'}`}>
+                        {homeScore}
+                      </span>
+                      <span className="schedule-score-sep">–</span>
+                      <span className={`schedule-score-num ${awayWon ? 'schedule-score-num--winner' : 'schedule-score-num--loser'}`}>
+                        {awayScore}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="schedule-vs">vs</div>
+                  )}
+                </div>
+
+                <div className={`schedule-team schedule-team--away ${awayWon ? 'schedule-team--winner' : ''} ${homeWon ? 'schedule-team--loser' : ''}`}>
+                  <div className="schedule-team-info schedule-team-info--away">
+                    <span className="schedule-team-name">{away.country}</span>
+                    <span className="schedule-team-cost">${away.cost}</span>
+                  </div>
+                  <TeamFlag teamId={away.id} flagEmoji={away.flagEmoji} country={away.country} size="md" />
+                </div>
+              </div>
+
+              <div className="schedule-match-meta">
+                <span className="schedule-match-time">🕐 {date}, {time}</span>
+                <span className="schedule-match-venue">📍 {match.venue}, {match.city}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <h2 className="schedule-date-heading">Full Bracket</h2>
+      <KnockoutBracket resolved={resolvedBracket} teamMap={teamMap} />
+    </div>
   );
 }

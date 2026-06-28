@@ -147,7 +147,7 @@ export function MyPortfolioPage() {
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
           {[
             { label: 'Current Points', value: entry.currentPoints },
-            { label: 'Max Possible',   value: entry.maxPossiblePoints },
+            { label: 'Best Score',     value: entry.bestScore },
             { label: 'Teams Alive',    value: entry.teamsAlive },
           ].map(({ label, value }) => (
             <div key={label} className="stat-card" style={{ flex: '1 1 100px' }}>
@@ -224,7 +224,9 @@ export function MyPortfolioPage() {
                 <tr style={{ fontWeight: 700, borderTop: '2px solid var(--color-border)' }}>
                   <td>Total</td>
                   <td className="lb-num lb-pts">{entry.currentPoints}</td>
-                  <td className="lb-num">{entry.maxPossiblePoints}</td>
+                  <td className="lb-num">
+                    {entry.teams.reduce((s, t) => s + (entry.teamStatuses[t.id]?.maxPossiblePoints ?? 52), 0)}
+                  </td>
                   <td></td>
                 </tr>
               </tbody>

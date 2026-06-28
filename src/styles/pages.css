@@ -1008,6 +1008,139 @@
   }
 }
 
+/* ===== KNOCKOUT BRACKET ===== */
+.knockout-bracket {
+  margin-top: var(--space-2);
+}
+
+.knockout-bracket-columns {
+  display: flex;
+  gap: var(--space-4);
+  overflow-x: auto;
+  padding-bottom: var(--space-3);
+}
+
+.knockout-round {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  flex-shrink: 0;
+}
+
+.knockout-round-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-teal-800);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-3);
+  text-align: center;
+}
+
+.knockout-third-place-note {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.knockout-round-matches {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: var(--space-4);
+  flex: 1;
+}
+
+.knockout-match {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.knockout-match-number {
+  display: block;
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: 2px 0;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.bracket-slot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.knockout-match > .bracket-slot:last-child {
+  border-bottom: none;
+}
+
+.bracket-slot-team {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.bracket-slot-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-navy-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bracket-slot-placeholder {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bracket-slot-score {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-navy-900);
+  flex-shrink: 0;
+}
+
+.bracket-slot--winner {
+  background: rgba(0, 166, 166, 0.07);
+}
+
+.bracket-slot--winner .bracket-slot-name {
+  font-weight: var(--font-weight-bold);
+  color: var(--color-teal-800);
+}
+
+.bracket-slot--loser .bracket-slot-name,
+.bracket-slot--loser .bracket-slot-score {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.knockout-third-place {
+  margin-top: var(--space-6);
+  max-width: 240px;
+}
+
+.knockout-match--third {
+  max-width: 240px;
+}
+
 /* ===== SCORING MODAL ===== */
 .scoring-modal-backdrop {
   position: fixed;

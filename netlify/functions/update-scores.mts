@@ -121,6 +121,45 @@ const ESPN_NAME_TO_SLUG: Record<string, string> = {
   Haiti: "haiti",
 };
 
+/**
+ * Hardcoded overrides keyed by ESPN's stable numeric event ID, for fixtures
+ * where ESPN's `team.displayName` is still a bracket-position placeholder
+ * ("Group A 2nd Place", "Best Third Place A/B/C/D/F", etc.) instead of a real
+ * country name. Checked BEFORE resolveSlug() — if an event ID has an entry
+ * here, that wins outright and the displayName is never consulted, so this is
+ * safe to leave in place even after ESPN backfills real names.
+ *
+ * Currently covers all 16 Round of 32 matches (official FIFA Match 73–88),
+ * confirmed via the final group standings + FIFA's third-place combination
+ * table. Round of 16 onward will hit the same placeholder problem — add a
+ * similar block here once those ESPN event IDs are known (they won't exist
+ * with fixed real-team meaning until Round of 32 concludes, ~July 3–4 2026).
+ */
+const ESPN_EVENT_ID_OVERRIDE: Record<string, { home: string; away: string }> = {
+  "760486": { home: "south-africa",  away: "canada" },               // Match 73
+  "760487": { home: "brazil",        away: "japan" },                // Match 76
+  "760489": { home: "germany",       away: "paraguay" },              // Match 74
+  "760488": { home: "netherlands",   away: "morocco" },               // Match 75
+  "760490": { home: "cote-divoire",  away: "norway" },                // Match 78
+  "760492": { home: "france",        away: "sweden" },                // Match 77
+  "760491": { home: "mexico",        away: "ecuador" },               // Match 79
+  "760495": { home: "england",       away: "dr-congo" },              // Match 80
+  "760493": { home: "belgium",       away: "senegal" },               // Match 82
+  "760494": { home: "united-states", away: "bosnia-and-herzegovina" }, // Match 81
+  "760497": { home: "spain",         away: "austria" },                // Match 84
+  "760496": { home: "portugal",      away: "croatia" },                // Match 83
+  "760498": { home: "switzerland",   away: "algeria" },                // Match 85
+  "760499": { home: "australia",     away: "egypt" },                  // Match 88
+  "760500": { home: "argentina",     away: "cabo-verde" },              // Match 86
+  "760501": { home: "colombia",      away: "ghana" },                  // Match 87
+};
+
+/** Reverse of ESPN_NAME_TO_SLUG, for friendly logging when ESPN_EVENT_ID_OVERRIDE
+ *  kicks in and home.team.displayName/away.team.displayName are still placeholders. */
+const SLUG_TO_DISPLAY_NAME: Record<string, string> = Object.fromEntries(
+  Object.entries(ESPN_NAME_TO_SLUG).map(([name, slug]) => [slug, name]),
+);
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface ESPNEvent {
@@ -278,20 +317,26 @@ async function maybeAwardGroupBonuses(
     b.pts - a.pts || b.gd - a.gd || b.gf - a.gf || aId.localeCompare(bId),
   );
 
-  const bonuses = [4, 2, 0, 0]; // 3rd-place advancement (+1) handled manually — see NOTE below
-  const alive   = [true, true, true, false]; // 4th place eliminated; 3rd stays alive pending 8-best check
+  const bonuses     = [4, 2, 0, 0];
+  // 1st/2nd are confirmed Round of 32 teams. 4th is eliminated. 3rd place is
+  // PENDING — whether they advance depends on comparing all 12 groups' best
+  // third-place records, so they stay alive but at 'group' stage until
+  // reconcile_third_place_advancement() confirms them via real R32 results.
+  const alive       = [true, true, true, false];
+  const groupFinish = [1, 2, 3, 4];
 
   for (let i = 0; i < sorted.length; i++) {
     const [slug] = sorted[i];
     const bonus = bonuses[i];
     const isAlive = alive[i];
-    const newStage = isAlive ? "round_of_32" : "group";
+    const newStage = i < 2 ? "round_of_32" : "group";
 
     await sb.rpc("add_group_finish_bonus", {
       p_team_id: slug,
       p_bonus: bonus,
       p_is_alive: isAlive,
       p_stage: newStage,
+      p_group_finish: groupFinish[i],
     });
 
     if (bonus > 0) {
@@ -308,13 +353,33 @@ async function maybeAwardGroupBonuses(
     }
   }
 
-  // NOTE: 3rd-place advancement (+1 bonus) requires knowing all 12 groups' final 3rd-place records.
-  // Once all group stage matches are complete, run this in Supabase SQL editor to award it:
-  //
-  //   SELECT award_third_place_bonuses();   -- (function not yet created — do manually for now)
-  //
-  // Or use the Admin page to manually add +1 to the 8 qualifying 3rd-place teams.
   console.log(`Group ${groupLetter} complete. Standings:`, sorted.map(([id]) => id));
+}
+
+/**
+ * Once all 16 Round of 32 matches have been recorded, the ground truth of
+ * who the 8 best third-place qualifiers actually were is fully known.
+ * Award the +1 "3rd and advance" bonus to qualifiers and correctly
+ * eliminate (and freeze max_possible_points for) non-qualifiers.
+ * Safe to call repeatedly — the RPC skips teams already reconciled.
+ */
+async function maybeReconcileThirdPlace(sb: SupabaseClient) {
+  const { count } = await sb
+    .from("matches")
+    .select("id", { count: "exact", head: true })
+    .eq("stage", "round_of_32")
+    .eq("status", "complete");
+
+  if ((count ?? 0) < 16) return; // not all Round of 32 matches in yet
+
+  const { data, error } = await sb.rpc("reconcile_third_place_advancement");
+  if (error) {
+    console.error("reconcile_third_place_advancement failed:", error);
+    return;
+  }
+  if (data && data.length > 0) {
+    console.log("Third-place reconciliation:", data);
+  }
 }
 
 // ── Main handler ─────────────────────────────────────────────────────────────
@@ -366,8 +431,9 @@ export default async function updateScores(_req: Request) {
         const away = comp.competitors.find((c) => c.homeAway === "away");
         if (!home || !away) continue;
 
-        const homeSlug = resolveSlug(home.team.displayName);
-        const awaySlug = resolveSlug(away.team.displayName);
+        const override = ESPN_EVENT_ID_OVERRIDE[event.id];
+        const homeSlug = override?.home ?? resolveSlug(home.team.displayName);
+        const awaySlug = override?.away ?? resolveSlug(away.team.displayName);
 
         if (!homeSlug || !awaySlug) {
           const unknown = [!homeSlug && home.team.displayName, !awaySlug && away.team.displayName].filter(Boolean);
@@ -378,7 +444,12 @@ export default async function updateScores(_req: Request) {
         const homeScore = parseInt(home.score, 10);
         const awayScore = parseInt(away.score, 10);
         const stage = ESPN_SLUG_TO_STAGE[event.season?.slug ?? ""] ?? "group";
-        const matchLabel = `${home.team.displayName} ${homeScore}–${awayScore} ${away.team.displayName}`;
+        // Friendly names for logging — when the override map kicks in, ESPN's
+        // own displayName is still a bracket-position placeholder, so prefer
+        // the real country name resolved from the override slug.
+        const homeDisplay = override ? (SLUG_TO_DISPLAY_NAME[homeSlug] ?? homeSlug) : home.team.displayName;
+        const awayDisplay = override ? (SLUG_TO_DISPLAY_NAME[awaySlug] ?? awaySlug) : away.team.displayName;
+        const matchLabel = `${homeDisplay} ${homeScore}–${awayScore} ${awayDisplay}`;
 
         // Record the match
         await sb.from("matches").insert({
@@ -405,11 +476,11 @@ export default async function updateScores(_req: Request) {
           await sb.rpc("update_team_max_possible", { p_team_id: awaySlug });
 
           if (homePts > 0) {
-            const label = homePts === 3 ? `Group win vs ${away.team.displayName} (+3)` : `Group draw vs ${away.team.displayName} (+1)`;
+            const label = homePts === 3 ? `Group win vs ${awayDisplay} (+3)` : `Group draw vs ${awayDisplay} (+1)`;
             await insertScoringEvent(sb, homeSlug, event.id, "group_match", "group", homePts, label);
           }
           if (awayPts > 0) {
-            const label = awayPts === 3 ? `Group win vs ${home.team.displayName} (+3)` : `Group draw vs ${home.team.displayName} (+1)`;
+            const label = awayPts === 3 ? `Group win vs ${homeDisplay} (+3)` : `Group draw vs ${homeDisplay} (+1)`;
             await insertScoringEvent(sb, awaySlug, event.id, "group_match", "group", awayPts, label);
           }
 
@@ -423,7 +494,7 @@ export default async function updateScores(_req: Request) {
           // ── Knockout stage: award win points, eliminate loser ─────────────
           const winnerSlug = homeScore > awayScore ? homeSlug : awaySlug;
           const loserSlug  = homeScore > awayScore ? awaySlug : homeSlug;
-          const winnerName = homeScore > awayScore ? home.team.displayName : away.team.displayName;
+          const winnerName = homeScore > awayScore ? homeDisplay : awayDisplay;
           const pts = KNOCKOUT_PTS[stage] ?? 0;
           const newStage = NEXT_STAGE[stage] ?? stage;
 
@@ -439,6 +510,10 @@ export default async function updateScores(_req: Request) {
               sb, winnerSlug, event.id, `${stage}_win`, stage, pts,
               `Won ${stage.replace(/_/g, " ")} (+${pts})`,
             );
+          }
+
+          if (stage === "round_of_32") {
+            await maybeReconcileThirdPlace(sb);
           }
 
           console.log(`Knockout: ${winnerName} advances (+${pts})`);

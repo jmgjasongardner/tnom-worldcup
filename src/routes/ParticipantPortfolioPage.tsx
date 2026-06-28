@@ -92,8 +92,8 @@ export function ParticipantPortfolioPage() {
           <div className="stat-card-value">{entry.currentPoints}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-card-label">Max Possible</div>
-          <div className="stat-card-value">{entry.maxPossiblePoints}</div>
+          <div className="stat-card-label" title="The most points this portfolio could still realistically win, accounting for bracket collisions.">Best Score</div>
+          <div className="stat-card-value">{entry.bestScore}</div>
         </div>
         <div className="stat-card">
           <div className="stat-card-label">Teams Alive</div>
@@ -181,7 +181,9 @@ export function ParticipantPortfolioPage() {
               <tr style={{ fontWeight: 700, borderTop: '2px solid var(--color-border)' }}>
                 <td>Total</td>
                 <td className="lb-num lb-pts">{entry.currentPoints}</td>
-                <td className="lb-num">{entry.maxPossiblePoints}</td>
+                <td className="lb-num">
+                  {entry.teams.reduce((s, t) => s + (entry.teamStatuses[t.id]?.maxPossiblePoints ?? 52), 0)}
+                </td>
                 <td></td>
               </tr>
             </tbody>

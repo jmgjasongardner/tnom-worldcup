@@ -492,11 +492,20 @@ export default async function updateScores(_req: Request) {
 
         } else if (stage !== "third_place") {
           // ── Knockout stage: award win points, eliminate loser ─────────────
-          const winnerSlug = homeScore > awayScore ? homeSlug : awaySlug;
-          const loserSlug  = homeScore > awayScore ? awaySlug : homeSlug;
-          const winnerName = homeScore > awayScore ? homeDisplay : awayDisplay;
+          // Use ESPN's winner boolean rather than score comparison — for penalty
+          // shootout matches ESPN reports the regulation/AET score (which is
+          // tied), so homeScore > awayScore is always false and would give the
+          // wrong team. competitor.winner is always set correctly by ESPN.
+          const winnerSlug = home.winner ? homeSlug : awaySlug;
+          const loserSlug  = home.winner ? awaySlug : homeSlug;
+          const winnerName = home.winner ? homeDisplay : awayDisplay;
           const pts = KNOCKOUT_PTS[stage] ?? 0;
           const newStage = NEXT_STAGE[stage] ?? stage;
+
+          // Persist the authoritative winner so bracketEngine.ts can resolve
+          // downstream slots even when home_score === away_score (PSO).
+          await sb.from("matches").update({ winner_team_id: winnerSlug })
+            .eq("espn_event_id", event.id);
 
           await sb.rpc("add_knockout_win", {
             p_team_id: winnerSlug,

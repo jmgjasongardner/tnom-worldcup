@@ -31,6 +31,7 @@ interface RawMatchRow {
   away_team_id: string;
   home_score: number | null;
   away_score: number | null;
+  winner_team_id: string | null;
   status: string;
 }
 
@@ -50,7 +51,7 @@ for (const m of KNOCKOUT_BRACKET) {
 async function fetchKnockoutResultRows(): Promise<RawMatchRow[]> {
   const { data } = await supabase
     .from('matches')
-    .select('stage, home_team_id, away_team_id, home_score, away_score, status')
+    .select('stage, home_team_id, away_team_id, home_score, away_score, winner_team_id, status')
     .in('stage', KNOCKOUT_STAGES);
   return (data ?? []) as RawMatchRow[];
 }
@@ -116,10 +117,14 @@ export function resolveBracket(rows: RawMatchRow[]): ResolvedBracketMatch[] {
         } else if ((awayScore ?? 0) > (homeScore ?? 0)) {
           winnerTeamId = away.teamId;
           loserTeamId = home.teamId;
+        } else if (result.winner_team_id) {
+          // Penalty shootout — regulation/AET score is level; use the
+          // authoritative winner stored by update-scores.mts (patch_010).
+          winnerTeamId = result.winner_team_id;
+          loserTeamId = result.winner_team_id === home.teamId ? away.teamId : home.teamId;
         }
-        // A tied scoreline shouldn't happen in a knockout match (penalties
-        // always produce a winner) — if it does, winner/loser stay null and
-        // descendant slots simply remain unresolved until it's corrected.
+        // If none of the above branches matched, winner/loser stay null and
+        // descendant slots remain unresolved (shouldn't happen in practice).
       }
     }
 

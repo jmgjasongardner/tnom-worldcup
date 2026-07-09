@@ -65,9 +65,15 @@ export function KnockoutBracket({ resolved, teamMap }: KnockoutBracketProps) {
           <div key={stage} className="knockout-round">
             <h3 className="knockout-round-title">{KNOCKOUT_STAGE_LABELS[stage]}</h3>
             <div className="knockout-round-matches">
-              {(byStage[stage] ?? []).map((m) => (
+              {(byStage[stage] ?? []).map((m) => {
+                // Penalty shootout: match complete, scores level, winner still decided.
+                const isPso = m.isComplete && m.homeScore !== null && m.homeScore === m.awayScore && !!m.winnerTeamId;
+                return (
                 <div key={m.matchNumber} className="knockout-match">
-                  <span className="knockout-match-number">Match {m.matchNumber}</span>
+                  <span className="knockout-match-number">
+                    Match {m.matchNumber}
+                    {isPso && <span className="knockout-match-pso"> (PSO)</span>}
+                  </span>
                   <SlotRow
                     teamId={m.homeTeamId} label={m.homeLabel} score={m.homeScore}
                     isWinner={!!m.winnerTeamId && m.winnerTeamId === m.homeTeamId}
@@ -79,7 +85,8 @@ export function KnockoutBracket({ resolved, teamMap }: KnockoutBracketProps) {
                     isComplete={m.isComplete} teamMap={teamMap}
                   />
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))}
